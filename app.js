@@ -1516,7 +1516,8 @@
         if (state.pin === state.correctPin || state.pin === '202408' || state.pin === '123456') {
           toast('PIN Verified', 'success');
           closeModal();
-          setTimeout(() => openAdminAuthModal(), 200);
+          unlockAdminMode({ full_name: state.store.name || 'Store Owner', email: 'owner@store.com', role: 'Store Owner' });
+          toast('ยินดีต้อนรับเข้าสู่ระบบจัดการร้านค้า Admin Dashboard', 'success');
         } else {
           // Error shake
           const dots = body.querySelectorAll('.calc-dot');
@@ -4971,16 +4972,23 @@
       </div>
     `));
 
+    // Read draft from sessionStorage if available to prevent data loss on page switch
+    let draft = {};
+    try {
+      draft = JSON.parse(sessionStorage.getItem('haypos_settings_draft') || '{}');
+    } catch(e) {}
+    const s = { ...state.store, ...draft };
+
     // Working copies for dynamic fields
-    let heroIconType = state.store.heroIconType || 'emoji';
-    let heroImage = state.store.heroImage || '';
-    let currentReceiptLogoType = state.store.receiptLogoType || 'emoji';
-    let currentReceiptLogoImage = state.store.receiptLogoImage || '';
-    let currentReceiptFooterType = state.store.receiptFooterType === 'qr' ? 'image' : (state.store.receiptFooterType || 'image');
-    let currentReceiptFooterImage = state.store.receiptFooterImage || '';
-    let currentQrPaymentImage = state.store.qr_image_url || '';
-    let currentHighlights = JSON.parse(JSON.stringify(state.store.highlights || DEFAULT_STORE_CONFIG.highlights));
-    let currentPaymentAccounts = JSON.parse(JSON.stringify(state.store.payment_accounts || DEFAULT_STORE_CONFIG.payment_accounts));
+    let heroIconType = s.heroIconType || 'emoji';
+    let heroImage = s.heroImage || '';
+    let currentReceiptLogoType = s.receiptLogoType || 'emoji';
+    let currentReceiptLogoImage = s.receiptLogoImage || '';
+    let currentReceiptFooterType = s.receiptFooterType === 'qr' ? 'image' : (s.receiptFooterType || 'image');
+    let currentReceiptFooterImage = s.receiptFooterImage || '';
+    let currentQrPaymentImage = s.qr_image_url || '';
+    let currentHighlights = JSON.parse(JSON.stringify(s.highlights || DEFAULT_STORE_CONFIG.highlights));
+    let currentPaymentAccounts = JSON.parse(JSON.stringify(s.payment_accounts || DEFAULT_STORE_CONFIG.payment_accounts));
 
     const formWrap = el(`
       <div style="display:flex; flex-direction:column; gap:20px;">
@@ -4992,17 +5000,17 @@
           <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:12px;">
             <div class="field">
               <label>ข้อความหน้าดาวน์โหลด (Loading Screen Title)</label>
-              <input class="input" id="setLoadingTitle" value="${escapeHTML(state.store.loadingTitle || state.store.name || 'BNC HayMate')}" placeholder="เช่น BNC HayMate, ยินดีต้อนรับสู่ BNC HayMate" />
+              <input class="input" id="setLoadingTitle" value="${escapeHTML(s.loadingTitle || s.name || 'BNC HayMate')}" placeholder="เช่น BNC HayMate, ยินดีต้อนรับสู่ BNC HayMate" />
               <div style="font-size:11px; color:var(--muted); margin-top:3px;">แสดงตรงกลางหน้าโหลด (ฟอนต์ Sunshiney) พร้อมหิมะตก</div>
             </div>
             <div class="field">
               <label>ชื่อเมนูหน้าร้าน / Page Title</label>
-              <input class="input" id="setStorefrontTitle" value="${escapeHTML(state.store.storefrontTitle || 'BNC HayMate')}" placeholder="เช่น BNC HayMate, ร้านขนม HayMate" />
+              <input class="input" id="setStorefrontTitle" value="${escapeHTML(s.storefrontTitle || 'BNC HayMate')}" placeholder="เช่น BNC HayMate, ร้านขนม HayMate" />
               <div style="font-size:11px; color:var(--muted); margin-top:3px;">จะเปลี่ยนทั้งชื่อเมนู Sidebar และหัวข้อด้านบนหน้าร้านทันที</div>
             </div>
             <div class="field">
               <label>คำบรรยายหน้าร้าน / Subtitle</label>
-              <input class="input" id="setStorefrontSub" value="${escapeHTML(state.store.storefrontSub || 'Handmade sweet things & bakery')}" placeholder="เช่น Handmade sweet things & bakery, ขนมและเครื่องดื่มอบสดใหม่" />
+              <input class="input" id="setStorefrontSub" value="${escapeHTML(s.storefrontSub || 'Handmade sweet things & bakery')}" placeholder="เช่น Handmade sweet things & bakery, ขนมและเครื่องดื่มอบสดใหม่" />
             </div>
           </div>
         </div>
@@ -5014,15 +5022,15 @@
           <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-top:12px;">
             <div class="field">
               <label>หัวข้อแบนเนอร์ (Hero Title)</label>
-              <input class="input" id="setHeroTitle" value="${escapeHTML(state.store.heroTitle || 'Fresh from the oven, daily')}" />
+              <input class="input" id="setHeroTitle" value="${escapeHTML(s.heroTitle || 'Fresh from the oven, daily')}" />
             </div>
             <div class="field">
               <label>คำบรรยายแบนเนอร์ (Hero Description)</label>
-              <input class="input" id="setHeroSub" value="${escapeHTML(state.store.heroSub || 'Handmade cakes, pastries, and rose-scented drinks.')}" />
+              <input class="input" id="setHeroSub" value="${escapeHTML(s.heroSub || 'Handmade cakes, pastries, and rose-scented drinks.')}" />
             </div>
             <div class="field">
               <label>ข้อความบนปุ่มกด (Button Text)</label>
-              <input class="input" id="setHeroBtnText" value="${escapeHTML(state.store.heroBtnText || 'Shop Menu (320 items)')}" />
+              <input class="input" id="setHeroBtnText" value="${escapeHTML(s.heroBtnText || 'Shop Menu (320 items)')}" />
             </div>
           </div>
 
@@ -5036,7 +5044,7 @@
             <div id="heroEmojiWrap" style="display:${heroIconType === 'emoji' ? 'block' : 'none'};">
               <div class="field" style="margin-bottom:0;">
                 <label style="font-size:11px;">ข้อความตัวอักษรย่อแบนเนอร์ (เช่น B, BN, HM)</label>
-                <input class="input" id="setHeroEmoji" value="${escapeHTML(state.store.heroEmoji || 'B')}" style="max-width:120px; font-size:18px; text-align:center;" />
+                <input class="input" id="setHeroEmoji" value="${escapeHTML(s.heroEmoji || 'B')}" style="max-width:120px; font-size:18px; text-align:center;" />
               </div>
             </div>
             <div id="heroImageWrap" style="display:${heroIconType === 'image' ? 'block' : 'none'};">
@@ -5068,8 +5076,8 @@
           <div class="card-title">Popular Picks Section (หมวดสินค้าขายดี)</div>
           <div class="card-sub">แก้ไขชื่อหัวข้อและคำอธิบายส่วนแสดงสินค้าขายดีบนหน้า Home</div>
           <div class="grid" style="grid-template-columns: 1fr 1fr; gap:14px; margin-top:12px;">
-            <div class="field"><label>หัวข้อส่วนสินค้า (Section Title)</label><input class="input" id="setPopularTitle" value="${escapeHTML(state.store.popularTitle || 'Popular Picks')}" /></div>
-            <div class="field"><label>คำบรรยาย (Section Subtitle)</label><input class="input" id="setPopularSub" value="${escapeHTML(state.store.popularSub || 'Best sellers this week')}" /></div>
+            <div class="field"><label>หัวข้อส่วนสินค้า (Section Title)</label><input class="input" id="setPopularTitle" value="${escapeHTML(s.popularTitle || 'Popular Picks')}" /></div>
+            <div class="field"><label>คำบรรยาย (Section Subtitle)</label><input class="input" id="setPopularSub" value="${escapeHTML(s.popularSub || 'Best sellers this week')}" /></div>
           </div>
         </div>
 
@@ -5141,7 +5149,7 @@
                 <div id="receiptLogoEmojiWrap" style="display:${currentReceiptLogoType !== 'image' ? 'block' : 'none'};">
                   <div class="field" style="margin-bottom:0;">
                     <label style="font-size:11px;">ตัวอักษรย่อโลโก้หัวสลิป (เช่น B, BN, HM)</label>
-                    <input class="input" id="setReceiptLogoEmoji" value="${escapeHTML(state.store.receiptLogoEmoji || 'B')}" style="max-width:140px; text-align:center; font-size:18px; font-weight:800;" />
+                    <input class="input" id="setReceiptLogoEmoji" value="${escapeHTML(s.receiptLogoEmoji || 'B')}" style="max-width:140px; text-align:center; font-size:18px; font-weight:800;" />
                   </div>
                 </div>
               </div>
@@ -5150,11 +5158,11 @@
               <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
                 <div class="field">
                   <label>ชื่อร้านบนหัวสลิป (Store Name)</label>
-                  <input class="input" id="setReceiptStoreName" value="${escapeHTML(state.store.receiptStoreName || 'BNC HayMate Bakery')}" />
+                  <input class="input" id="setReceiptStoreName" value="${escapeHTML(s.receiptStoreName || 'BNC HayMate Bakery')}" />
                 </div>
                 <div class="field">
                   <label>ที่อยู่/คำโปรยหัวสลิป (Store Address)</label>
-                  <input class="input" id="setReceiptStoreAddress" value="${escapeHTML(state.store.receiptStoreAddress || '14 Sukhumvit Rd · Bangkok')}" />
+                  <input class="input" id="setReceiptStoreAddress" value="${escapeHTML(s.receiptStoreAddress || '14 Sukhumvit Rd · Bangkok')}" />
                 </div>
               </div>
 
@@ -5189,7 +5197,7 @@
                 <div id="receiptFooterEmojiWrap" style="display:${currentReceiptFooterType === 'emoji' ? 'block' : 'none'}; margin-bottom:10px;">
                   <div class="field" style="margin-bottom:0;">
                     <label style="font-size:11px;">ใส่อิโมจิท้ายกระดาษ (เช่น , , , )</label>
-                    <input class="input" id="setReceiptFooterEmoji" value="${escapeHTML(state.store.receiptFooterEmoji || '')}" style="max-width:140px; text-align:center; font-size:18px;" />
+                    <input class="input" id="setReceiptFooterEmoji" value="${escapeHTML(s.receiptFooterEmoji || '')}" style="max-width:140px; text-align:center; font-size:18px;" />
                   </div>
                 </div>
 
@@ -5197,11 +5205,11 @@
                 <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
                   <div class="field" style="margin-bottom:0;">
                     <label>ข้อความขอบคุณ (Thank You Message)</label>
-                    <input class="input" id="setReceiptFooterMsg" value="${escapeHTML(state.store.receiptFooterMsg || 'Thank you for your order')}" />
+                    <input class="input" id="setReceiptFooterMsg" value="${escapeHTML(s.receiptFooterMsg || 'Thank you for your order')}" />
                   </div>
                   <div class="field" style="margin-bottom:0;">
                     <label>ข้อความหมายเหตุสลิป (Sub-note)</label>
-                    <input class="input" id="setReceiptFooterSub" value="${escapeHTML(state.store.receiptFooterSub || 'Please keep this receipt for your reference')}" />
+                    <input class="input" id="setReceiptFooterSub" value="${escapeHTML(s.receiptFooterSub || 'Please keep this receipt for your reference')}" />
                   </div>
                 </div>
               </div>
@@ -5217,10 +5225,10 @@
                   <div class="r-logo" id="prevRLogo">
                     ${(currentReceiptLogoType === 'image' && currentReceiptLogoImage)
                       ? `<img src="${escapeHTML(currentReceiptLogoImage)}" style="width:100%;height:100%;object-fit:cover;" />`
-                      : `<span>${escapeHTML(state.store.receiptLogoEmoji || 'B')}</span>`}
+                      : `<span>${escapeHTML(s.receiptLogoEmoji || 'B')}</span>`}
                   </div>
-                  <div class="r-store" id="prevRStore" style="font-size:15px;">${escapeHTML(state.store.receiptStoreName || 'BNC HayMate Bakery')}</div>
-                  <div class="r-sub" id="prevRAddress" style="font-size:11px;">${escapeHTML(state.store.receiptStoreAddress || '14 Sukhumvit Rd · Bangkok')}</div>
+                  <div class="r-store" id="prevRStore" style="font-size:15px;">${escapeHTML(s.receiptStoreName || 'BNC HayMate Bakery')}</div>
+                  <div class="r-sub" id="prevRAddress" style="font-size:11px;">${escapeHTML(s.receiptStoreAddress || '14 Sukhumvit Rd · Bangkok')}</div>
                 </div>
                 <div class="r-line" style="margin:8px 0;"></div>
                 <div class="r-items" style="font-size:11.5px; gap:4px;">
@@ -5242,11 +5250,11 @@
                   ${currentReceiptFooterType === 'image' && currentReceiptFooterImage
                     ? `<div class="r-footer-graphic" style="width:80px;height:80px;margin:8px auto 4px;"><img src="${escapeHTML(currentReceiptFooterImage)}" style="width:100%;height:100%;object-fit:cover;" /></div>`
                     : currentReceiptFooterType === 'emoji'
-                    ? `<div class="r-footer-graphic" style="width:80px;height:80px;margin:8px auto 4px;font-size:36px;">${escapeHTML(state.store.receiptFooterEmoji || '')}</div>`
+                    ? `<div class="r-footer-graphic" style="width:80px;height:80px;margin:8px auto 4px;font-size:36px;">${escapeHTML(s.receiptFooterEmoji || '')}</div>`
                     : `<div class="r-footer-graphic" style="width:80px;height:80px;margin:8px auto 4px;font-size:36px;"></div>`}
                 </div>
-                <div id="prevRFooterMsg" style="text-align:center; font-family:'Sunshiney', cursive; font-size:18px; font-weight:700; color:var(--accent-text); margin-top:6px; line-height:1.2;">${escapeHTML(state.store.receiptFooterMsg || 'Thank you for your order')}</div>
-                <div id="prevRFooterSub" style="text-align:center; font-size:10px; color:var(--muted); margin-top:2px;">${escapeHTML(state.store.receiptFooterSub || '')}</div>
+                <div id="prevRFooterMsg" style="text-align:center; font-family:'Sunshiney', cursive; font-size:18px; font-weight:700; color:var(--accent-text); margin-top:6px; line-height:1.2;">${escapeHTML(s.receiptFooterMsg || 'Thank you for your order')}</div>
+                <div id="prevRFooterSub" style="text-align:center; font-size:10px; color:var(--muted); margin-top:2px;">${escapeHTML(s.receiptFooterSub || '')}</div>
               </div>
             </div>
           </div>
@@ -5264,15 +5272,15 @@
               
               <div class="field">
                 <label>ชื่อร้านสไตล์ Calligraphy (Store Brand Title)</label>
-                <input class="input" id="setTrackingTitle" value="${escapeHTML(state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'BNC HayMate')}" />
+                <input class="input" id="setTrackingTitle" value="${escapeHTML(s.trackingReviewTitle || s.receiptStoreName || s.name || 'BNC HayMate')}" />
               </div>
               <div class="field">
                 <label>ข้อความเล็กๆ ใต้ชื่อร้าน (Sub-message)</label>
-                <input class="input" id="setTrackingSub" value="${escapeHTML(state.store.trackingReviewSub || '')}" />
+                <input class="input" id="setTrackingSub" value="${escapeHTML(s.trackingReviewSub || '')}" />
               </div>
               <div class="field" style="margin-bottom:0;">
                 <label>ข้อความบนปุ่มรีวิว (Button Text)</label>
-                <input class="input" id="setTrackingBtnText" value="${escapeHTML(state.store.trackingReviewBtnText || 'เขียนรีวิว &amp; ให้คะแนนร้าน')}" />
+                <input class="input" id="setTrackingBtnText" value="${escapeHTML(s.trackingReviewBtnText || 'เขียนรีวิว &amp; ให้คะแนนร้าน')}" />
               </div>
             </div>
 
@@ -5283,23 +5291,23 @@
               <div class="grid" style="gap:8px;">
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px;">1 ดวงใจ</label>
-                  <input class="input" id="setStarLabel1" value="${escapeHTML(state.store.starLabel1 || '1 ดวงใจ - ต้องปรับปรุง')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStarLabel1" value="${escapeHTML(s.starLabel1 || '1 ดวงใจ - ต้องปรับปรุง')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px;">2 ดวงใจ</label>
-                  <input class="input" id="setStarLabel2" value="${escapeHTML(state.store.starLabel2 || '2 ดวงใจ - พอใช้ได้')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStarLabel2" value="${escapeHTML(s.starLabel2 || '2 ดวงใจ - พอใช้ได้')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px;">3 ดวงใจ</label>
-                  <input class="input" id="setStarLabel3" value="${escapeHTML(state.store.starLabel3 || '3 ดวงใจ - ปานกลาง / รสชาติดี')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStarLabel3" value="${escapeHTML(s.starLabel3 || '3 ดวงใจ - ปานกลาง / รสชาติดี')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px;">4 ดวงใจ</label>
-                  <input class="input" id="setStarLabel4" value="${escapeHTML(state.store.starLabel4 || '4 ดวงใจ - อร่อยและประทับใจมาก')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStarLabel4" value="${escapeHTML(s.starLabel4 || '4 ดวงใจ - อร่อยและประทับใจมาก')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px;">5 ดวงใจ</label>
-                  <input class="input" id="setStarLabel5" value="${escapeHTML(state.store.starLabel5 || '5 ดวงใจ - ประทับใจมากที่สุด ยอดเยี่ยม!')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStarLabel5" value="${escapeHTML(s.starLabel5 || '5 ดวงใจ - ประทับใจมากที่สุด ยอดเยี่ยม!')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
               </div>
             </div>
@@ -5339,29 +5347,29 @@
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11.5px; font-weight:700;">สีกระดาษโน้ต (Paper Bg)</label>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <input type="color" id="setStickyBg" value="${state.store.stickyNoteBg || '#FFFDF2'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
-                    <input class="input" id="setStickyBgHex" value="${state.store.stickyNoteBg || '#FFFDF2'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
+                    <input type="color" id="setStickyBg" value="${s.stickyNoteBg || '#FFFDF2'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
+                    <input class="input" id="setStickyBgHex" value="${s.stickyNoteBg || '#FFFDF2'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
                   </div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11.5px; font-weight:700;">สีเส้นขอบ (Border)</label>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <input type="color" id="setStickyBorder" value="${state.store.stickyNoteBorder || '#EFE6C7'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
-                    <input class="input" id="setStickyBorderHex" value="${state.store.stickyNoteBorder || '#EFE6C7'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
+                    <input type="color" id="setStickyBorder" value="${s.stickyNoteBorder || '#EFE6C7'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
+                    <input class="input" id="setStickyBorderHex" value="${s.stickyNoteBorder || '#EFE6C7'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
                   </div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11.5px; font-weight:700;">สีขอบล่างกระดาษ (Bottom Edge)</label>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <input type="color" id="setStickyBottom" value="${state.store.stickyNoteBottomBorder || '#DFD2A8'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
-                    <input class="input" id="setStickyBottomHex" value="${state.store.stickyNoteBottomBorder || '#DFD2A8'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
+                    <input type="color" id="setStickyBottom" value="${s.stickyNoteBottomBorder || '#DFD2A8'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
+                    <input class="input" id="setStickyBottomHex" value="${s.stickyNoteBottomBorder || '#DFD2A8'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
                   </div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11.5px; font-weight:700;">สีตราหมุดปัก (Pin Badge)</label>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <input type="color" id="setStickyPin" value="${state.store.stickyNotePinColor || '#EFA6C1'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
-                    <input class="input" id="setStickyPinHex" value="${state.store.stickyNotePinColor || '#EFA6C1'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
+                    <input type="color" id="setStickyPin" value="${s.stickyNotePinColor || '#EFA6C1'}" style="width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;" />
+                    <input class="input" id="setStickyPinHex" value="${s.stickyNotePinColor || '#EFA6C1'}" style="font-size:12px; padding:6px 8px; font-weight:700; font-family:monospace;" />
                   </div>
                 </div>
               </div>
@@ -5371,8 +5379,8 @@
             <div style="background:var(--bg); border:1.5px solid var(--border); border-radius:18px; padding:18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
               <div style="font-weight:700; font-size:13px; color:var(--muted); margin-bottom:18px; text-align:center;">ตัวอย่างสติกกี้โน้ตแบบสด (Live Preview)</div>
               
-              <div id="stickyLivePreviewCard" class="review-card pinned-sticky tilt-left" style="max-width:280px; width:100%; pointer-events:none; background:${state.store.stickyNoteBg || '#FFFDF2'}; border-color:${state.store.stickyNoteBorder || '#EFE6C7'}; border-bottom-color:${state.store.stickyNoteBottomBorder || '#DFD2A8'};">
-                <div class="sticky-pin-badge" id="prevStickyPinBadge" style="background:${state.store.stickyNotePinColor || '#EFA6C1'};">
+              <div id="stickyLivePreviewCard" class="review-card pinned-sticky tilt-left" style="max-width:280px; width:100%; pointer-events:none; background:${s.stickyNoteBg || '#FFFDF2'}; border-color:${s.stickyNoteBorder || '#EFE6C7'}; border-bottom-color:${s.stickyNoteBottomBorder || '#DFD2A8'};">
+                <div class="sticky-pin-badge" id="prevStickyPinBadge" style="background:${s.stickyNotePinColor || '#EFA6C1'};">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 17v5M5 17h14M7 17l1-9h8l1 9M9 8V3h6v5"/></svg>
                   <span>Pinned Note</span>
                 </div>
@@ -5403,12 +5411,12 @@
               <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:12px; font-weight:700; color:#B47A28;">เกณฑ์สต็อกน้อย (Low Stock &lt; ชิ้น)</label>
-                  <input type="number" class="input" id="setStockLowThreshold" value="${state.store.stockLowThreshold !== undefined ? state.store.stockLowThreshold : 100}" min="1" style="font-weight:700;" />
+                  <input type="number" class="input" id="setStockLowThreshold" value="${s.stockLowThreshold !== undefined ? s.stockLowThreshold : 100}" min="1" style="font-weight:700;" />
                   <div style="font-size:11px; color:var(--muted); margin-top:2px;">น้อยกว่าจำนวนนี้จะแสดง <strong style="color:#B47A28;">สีส้ม Low</strong></div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:12px; font-weight:700; color:#B04955;">เกณฑ์สินค้าหมด (Out of Stock &le; ชิ้น)</label>
-                  <input type="number" class="input" id="setStockOutThreshold" value="${state.store.stockOutThreshold !== undefined ? state.store.stockOutThreshold : 0}" min="0" style="font-weight:700;" />
+                  <input type="number" class="input" id="setStockOutThreshold" value="${s.stockOutThreshold !== undefined ? s.stockOutThreshold : 0}" min="0" style="font-weight:700;" />
                   <div style="font-size:11px; color:var(--muted); margin-top:2px;">เหลือน้อยกว่าหรือเท่ากับนี้จะแสดง <strong style="color:#B04955;">สีแดง Out</strong></div>
                 </div>
               </div>
@@ -5417,15 +5425,15 @@
               <div class="grid" style="grid-template-columns:1fr 1fr 1fr; gap:8px;">
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px; color:#3F8E63;">ป้ายสต็อกพร้อมขาย (เขียว)</label>
-                  <input class="input" id="setStockHealthyLabel" value="${escapeHTML(state.store.stockHealthyLabel || 'Healthy')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStockHealthyLabel" value="${escapeHTML(s.stockHealthyLabel || 'Healthy')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px; color:#B47A28;">ป้ายสต็อกน้อย (ส้ม)</label>
-                  <input class="input" id="setStockLowLabel" value="${escapeHTML(state.store.stockLowLabel || 'Low')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStockLowLabel" value="${escapeHTML(s.stockLowLabel || 'Low')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
                 <div class="field" style="margin-bottom:0;">
                   <label style="font-size:11px; color:#B04955;">ป้ายสินค้าหมด (แดง)</label>
-                  <input class="input" id="setStockOutLabel" value="${escapeHTML(state.store.stockOutLabel || 'Out of stock')}" style="font-size:12px; padding:6px 10px;" />
+                  <input class="input" id="setStockOutLabel" value="${escapeHTML(s.stockOutLabel || 'Out of stock')}" style="font-size:12px; padding:6px 10px;" />
                 </div>
               </div>
             </div>
@@ -5438,25 +5446,25 @@
                 <div style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between;">
                   <div>
                     <strong style="font-size:13px;">Strawberry Croissant</strong>
-                    <div style="font-size:11px; color:var(--muted);">สต็อก: 150 ชิ้น (&ge; <span id="prevThreshHealthy">${state.store.stockLowThreshold !== undefined ? state.store.stockLowThreshold : 100}</span>)</div>
+                    <div style="font-size:11px; color:var(--muted);">สต็อก: 150 ชิ้น (&ge; <span id="prevThreshHealthy">${s.stockLowThreshold !== undefined ? s.stockLowThreshold : 100}</span>)</div>
                   </div>
-                  <span class="badge success" id="prevBadgeHealthy">150 in stock (${escapeHTML(state.store.stockHealthyLabel || 'Healthy')})</span>
+                  <span class="badge success" id="prevBadgeHealthy">150 in stock (${escapeHTML(s.stockHealthyLabel || 'Healthy')})</span>
                 </div>
 
                 <div style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between;">
                   <div>
                     <strong style="font-size:13px;">Matcha Latte Cake</strong>
-                    <div style="font-size:11px; color:var(--muted);">สต็อก: 45 ชิ้น (&lt; <span id="prevThreshLow">${state.store.stockLowThreshold !== undefined ? state.store.stockLowThreshold : 100}</span>)</div>
+                    <div style="font-size:11px; color:var(--muted);">สต็อก: 45 ชิ้น (&lt; <span id="prevThreshLow">${s.stockLowThreshold !== undefined ? s.stockLowThreshold : 100}</span>)</div>
                   </div>
-                  <span class="badge warn" id="prevBadgeLow">45 in stock (${escapeHTML(state.store.stockLowLabel || 'Low')})</span>
+                  <span class="badge warn" id="prevBadgeLow">45 in stock (${escapeHTML(s.stockLowLabel || 'Low')})</span>
                 </div>
 
                 <div style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between;">
                   <div>
                     <strong style="font-size:13px;">Rose Blossom Cookie</strong>
-                    <div style="font-size:11px; color:var(--muted);">สต็อก: 0 ชิ้น (&le; <span id="prevThreshOut">${state.store.stockOutThreshold !== undefined ? state.store.stockOutThreshold : 0}</span>)</div>
+                    <div style="font-size:11px; color:var(--muted);">สต็อก: 0 ชิ้น (&le; <span id="prevThreshOut">${s.stockOutThreshold !== undefined ? s.stockOutThreshold : 0}</span>)</div>
                   </div>
-                  <span class="badge danger" id="prevBadgeOut">0 in stock (${escapeHTML(state.store.stockOutLabel || 'Out of stock')})</span>
+                  <span class="badge danger" id="prevBadgeOut">0 in stock (${escapeHTML(s.stockOutLabel || 'Out of stock')})</span>
                 </div>
               </div>
             </div>
@@ -5470,17 +5478,17 @@
           <div class="grid" style="gap:12px; margin-top:12px;">
             <div class="field">
               <label>Store Name (ชื่อร้านหลัก)</label>
-              <input class="input" id="setStoreName" value="${escapeHTML(state.store.name)}"/>
+              <input class="input" id="setStoreName" value="${escapeHTML(s.name)}"/>
               <div style="font-size:11px; color:var(--muted); margin-top:3px;">แสดงที่แถบเมนูด้านซ้ายบน (Sidebar Brand) และหัวบราวเซอร์</div>
             </div>
             <div class="field">
               <label>Store Tagline (คำโปรยร้านหลัก)</label>
-              <input class="input" id="setStoreTagline" value="${escapeHTML(state.store.tagline)}"/>
+              <input class="input" id="setStoreTagline" value="${escapeHTML(s.tagline)}"/>
               <div style="font-size:11px; color:var(--muted); margin-top:3px;">แสดงใต้ชื่อร้านที่แถบเมนู</div>
             </div>
             <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px">
-              <div class="field"><label>Currency (สกุลเงิน)</label><select class="select" id="setCurrency"><option ${state.store.currency === 'THB (฿)' ? 'selected' : ''}>THB (฿)</option><option ${state.store.currency === 'USD ($)' ? 'selected' : ''}>USD ($)</option><option ${state.store.currency === 'SGD (S$)' ? 'selected' : ''}>SGD (S$)</option></select></div>
-              <div class="field"><label>Timezone (เขตเวลา)</label><select class="select" id="setTimezone"><option ${state.store.timezone === 'UTC+7 Bangkok' ? 'selected' : ''}>UTC+7 Bangkok</option><option ${state.store.timezone === 'UTC+8 Singapore' ? 'selected' : ''}>UTC+8 Singapore</option></select></div>
+              <div class="field"><label>Currency (สกุลเงิน)</label><select class="select" id="setCurrency"><option ${s.currency === 'THB (฿)' ? 'selected' : ''}>THB (฿)</option><option ${s.currency === 'USD ($)' ? 'selected' : ''}>USD ($)</option><option ${s.currency === 'SGD (S$)' ? 'selected' : ''}>SGD (S$)</option></select></div>
+              <div class="field"><label>Timezone (เขตเวลา)</label><select class="select" id="setTimezone"><option ${s.timezone === 'UTC+7 Bangkok' ? 'selected' : ''}>UTC+7 Bangkok</option><option ${s.timezone === 'UTC+8 Singapore' ? 'selected' : ''}>UTC+8 Singapore</option></select></div>
             </div>
           </div>
         </div>
@@ -5566,20 +5574,20 @@
 
           <div class="field" style="margin-top:10px;">
             <label style="font-weight:700;">ข้อความบนหัวมาสคอต (Top Title Text)</label>
-            <input class="input" id="setReviewPopupTitle" value="${escapeHTML(state.store.reviewPopupTitle || 'Thank You')}" placeholder="เช่น Thank You" />
+            <input class="input" id="setReviewPopupTitle" value="${escapeHTML(s.reviewPopupTitle || 'Thank You')}" placeholder="เช่น Thank You" />
             <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">ข้อความตัวอักษรโค้งเด้งดึ๋งด้านบนมาสคอต</div>
           </div>
 
           <div class="field" style="margin-top:10px;">
             <label style="font-weight:700;">รูปภาพมาสคอตร้าน (Mascot / Profile Image)</label>
             <div style="display:flex; gap:8px; align-items:center;">
-              <input class="input" id="setReviewPopupImgUrl" value="${escapeHTML(state.store.reviewPopupImage || '')}" placeholder="วาง URL รูปภาพ หรือกดปุ่มอัปโหลดรูปภาพมาสคอต" style="flex:1;" />
+              <input class="input" id="setReviewPopupImgUrl" value="${escapeHTML(s.reviewPopupImage || '')}" placeholder="วาง URL รูปภาพ หรือกดปุ่มอัปโหลดรูปภาพมาสคอต" style="flex:1;" />
               <input type="file" id="fileReviewPopupImg" accept="image/*" style="display:none;" />
               <button type="button" class="btn btn-sm btn-primary" id="btnUploadReviewPopupImg" style="font-weight:700; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <span>อัปโหลดรูป</span>
               </button>
-              <button type="button" class="btn btn-sm btn-ghost" id="btnClearReviewPopupImg" style="color:var(--danger); font-weight:700; white-space:nowrap; ${state.store.reviewPopupImage ? 'display:inline-block;' : 'display:none;'}">ลบรูป</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="btnClearReviewPopupImg" style="color:var(--danger); font-weight:700; white-space:nowrap; ${s.reviewPopupImage ? 'display:inline-block;' : 'display:none;'}">ลบรูป</button>
             </div>
           </div>
         </div>
@@ -6094,7 +6102,7 @@
         image: '',
         title: 'ธนาคารใหม่',
         account_number: '',
-        account_holder: state.store.name || ''
+        account_holder: s.name || ''
       });
       renderPaymentAccountsList();
       toast('เพิ่มช่องทางชำระเงินใหม่แล้ว', 'success');
@@ -6134,7 +6142,7 @@
     });
 
     // Review Celebration Popup Handlers
-    let currentReviewPopupImage = state.store.reviewPopupImage || '';
+    let currentReviewPopupImage = s.reviewPopupImage || '';
     const fileReviewPopupImg = formWrap.querySelector('#fileReviewPopupImg');
     const btnUploadReviewPopupImg = formWrap.querySelector('#btnUploadReviewPopupImg');
     const btnClearReviewPopupImg = formWrap.querySelector('#btnClearReviewPopupImg');
@@ -6167,14 +6175,14 @@
     });
 
     formWrap.querySelector('#btnTestCelebrationPopup')?.addEventListener('click', () => {
-      const tempTitle = formWrap.querySelector('#setReviewPopupTitle')?.value.trim() || state.store.reviewPopupTitle;
-      const tempMsg = formWrap.querySelector('#setReviewPopupMsg')?.value.trim() || state.store.reviewPopupMsg;
+      const tempTitle = formWrap.querySelector('#setReviewPopupTitle')?.value.trim() || s.reviewPopupTitle;
+      const tempMsg = formWrap.querySelector('#setReviewPopupMsg')?.value.trim() || s.reviewPopupMsg;
       const tempImg = (currentReviewPopupImage && !currentReviewPopupImage.startsWith('(Uploaded')) ? currentReviewPopupImage : (reviewPopupImgUrlInp?.value && reviewPopupImgUrlInp.value !== '(Uploaded Photo)' ? reviewPopupImgUrlInp.value : currentReviewPopupImage);
       
       const prevStoreConfig = { ...state.store };
-      state.store.reviewPopupTitle = tempTitle;
-      state.store.reviewPopupMsg = tempMsg;
-      state.store.reviewPopupImage = tempImg;
+      s.reviewPopupTitle = tempTitle;
+      s.reviewPopupMsg = tempMsg;
+      s.reviewPopupImage = tempImg;
 
       openReviewCelebrationModal();
 
@@ -6184,22 +6192,22 @@
 
     // Bind save actions
     const doSave = () => {
-      state.store.loadingTitle = formWrap.querySelector('#setLoadingTitle')?.value.trim() || state.store.name || 'BNC HayMate';
-      state.store.storefrontTitle = formWrap.querySelector('#setStorefrontTitle')?.value.trim() || 'BNC HayMate';
-      state.store.storefrontSub = formWrap.querySelector('#setStorefrontSub')?.value.trim() || 'Handmade sweet things & bakery';
-      state.store.heroTitle = formWrap.querySelector('#setHeroTitle')?.value.trim() || 'Fresh from the oven, daily';
-      state.store.heroSub = formWrap.querySelector('#setHeroSub')?.value.trim() || 'Handmade cakes, pastries, and rose-scented drinks.';
-      state.store.heroBtnText = formWrap.querySelector('#setHeroBtnText')?.value.trim() || 'Shop Menu (320 items)';
-      state.store.heroIconType = heroIconType;
-      state.store.heroEmoji = formWrap.querySelector('#setHeroEmoji')?.value.trim() || '';
-      state.store.heroImage = (heroImage && !heroImage.startsWith('(Uploaded')) ? heroImage : (heroUrlInp?.value && heroUrlInp.value !== '(Uploaded Photo)' && heroUrlInp.value.startsWith('http') ? heroUrlInp.value : heroImage);
+      s.loadingTitle = formWrap.querySelector('#setLoadingTitle')?.value.trim() || s.name || 'BNC HayMate';
+      s.storefrontTitle = formWrap.querySelector('#setStorefrontTitle')?.value.trim() || 'BNC HayMate';
+      s.storefrontSub = formWrap.querySelector('#setStorefrontSub')?.value.trim() || 'Handmade sweet things & bakery';
+      s.heroTitle = formWrap.querySelector('#setHeroTitle')?.value.trim() || 'Fresh from the oven, daily';
+      s.heroSub = formWrap.querySelector('#setHeroSub')?.value.trim() || 'Handmade cakes, pastries, and rose-scented drinks.';
+      s.heroBtnText = formWrap.querySelector('#setHeroBtnText')?.value.trim() || 'Shop Menu (320 items)';
+      s.heroIconType = heroIconType;
+      s.heroEmoji = formWrap.querySelector('#setHeroEmoji')?.value.trim() || '';
+      s.heroImage = (heroImage && !heroImage.startsWith('(Uploaded')) ? heroImage : (heroUrlInp?.value && heroUrlInp.value !== '(Uploaded Photo)' && heroUrlInp.value.startsWith('http') ? heroUrlInp.value : heroImage);
 
       // Save Review Celebration Popup Settings
-      state.store.reviewPopupTitle = formWrap.querySelector('#setReviewPopupTitle')?.value.trim() || 'Thank You';
-      state.store.reviewPopupMsg = formWrap.querySelector('#setReviewPopupMsg')?.value.trim() || 'กลับมาใหม่น้า';
-      state.store.reviewPopupImage = (currentReviewPopupImage && !currentReviewPopupImage.startsWith('(Uploaded')) ? currentReviewPopupImage : (reviewPopupImgUrlInp?.value && reviewPopupImgUrlInp.value !== '(Uploaded Photo)' ? reviewPopupImgUrlInp.value : currentReviewPopupImage || '');
+      s.reviewPopupTitle = formWrap.querySelector('#setReviewPopupTitle')?.value.trim() || 'Thank You';
+      s.reviewPopupMsg = formWrap.querySelector('#setReviewPopupMsg')?.value.trim() || 'กลับมาใหม่น้า';
+      s.reviewPopupImage = (currentReviewPopupImage && !currentReviewPopupImage.startsWith('(Uploaded')) ? currentReviewPopupImage : (reviewPopupImgUrlInp?.value && reviewPopupImgUrlInp.value !== '(Uploaded Photo)' ? reviewPopupImgUrlInp.value : currentReviewPopupImage || '');
 
-      state.store.highlights = currentHighlights.map(h => ({
+      s.highlights = currentHighlights.map(h => ({
         iconType: h.iconType || 'emoji',
         icon: h.icon || '',
         image: h.image || '',
@@ -6207,50 +6215,50 @@
         sub: h.sub || ''
       }));
 
-      state.store.popularTitle = formWrap.querySelector('#setPopularTitle')?.value.trim() || 'Popular Picks';
-      state.store.popularSub = formWrap.querySelector('#setPopularSub')?.value.trim() || 'Best sellers this week';
+      s.popularTitle = formWrap.querySelector('#setPopularTitle')?.value.trim() || 'Popular Picks';
+      s.popularSub = formWrap.querySelector('#setPopularSub')?.value.trim() || 'Best sellers this week';
 
       // Receipt Settings Save
-      state.store.receiptLogoType = currentReceiptLogoType;
-      state.store.receiptLogoImage = (currentReceiptLogoImage && !currentReceiptLogoImage.startsWith('(Uploaded')) ? currentReceiptLogoImage : (logoUrlInp?.value && logoUrlInp.value !== '(Uploaded Photo)' && logoUrlInp.value.startsWith('http') ? logoUrlInp.value : currentReceiptLogoImage);
-      state.store.receiptLogoEmoji = formWrap.querySelector('#setReceiptLogoEmoji')?.value.trim() || 'B';
-      state.store.receiptStoreName = formWrap.querySelector('#setReceiptStoreName')?.value.trim() || 'BNC HayMate Bakery';
-      state.store.receiptStoreAddress = formWrap.querySelector('#setReceiptStoreAddress')?.value.trim() || '14 Sukhumvit Rd · Bangkok';
-      state.store.receiptFooterType = currentReceiptFooterType;
-      state.store.receiptFooterImage = (currentReceiptFooterImage && !currentReceiptFooterImage.startsWith('(Uploaded')) ? currentReceiptFooterImage : (footerUrlInp?.value && footerUrlInp.value !== '(Uploaded Photo)' && footerUrlInp.value.startsWith('http') ? footerUrlInp.value : currentReceiptFooterImage);
-      state.store.receiptFooterEmoji = formWrap.querySelector('#setReceiptFooterEmoji')?.value.trim() || '';
-      state.store.receiptFooterMsg = formWrap.querySelector('#setReceiptFooterMsg')?.value.trim() || 'Thank you for your order';
-      state.store.receiptFooterSub = formWrap.querySelector('#setReceiptFooterSub')?.value.trim() || '';
+      s.receiptLogoType = currentReceiptLogoType;
+      s.receiptLogoImage = (currentReceiptLogoImage && !currentReceiptLogoImage.startsWith('(Uploaded')) ? currentReceiptLogoImage : (logoUrlInp?.value && logoUrlInp.value !== '(Uploaded Photo)' && logoUrlInp.value.startsWith('http') ? logoUrlInp.value : currentReceiptLogoImage);
+      s.receiptLogoEmoji = formWrap.querySelector('#setReceiptLogoEmoji')?.value.trim() || 'B';
+      s.receiptStoreName = formWrap.querySelector('#setReceiptStoreName')?.value.trim() || 'BNC HayMate Bakery';
+      s.receiptStoreAddress = formWrap.querySelector('#setReceiptStoreAddress')?.value.trim() || '14 Sukhumvit Rd · Bangkok';
+      s.receiptFooterType = currentReceiptFooterType;
+      s.receiptFooterImage = (currentReceiptFooterImage && !currentReceiptFooterImage.startsWith('(Uploaded')) ? currentReceiptFooterImage : (footerUrlInp?.value && footerUrlInp.value !== '(Uploaded Photo)' && footerUrlInp.value.startsWith('http') ? footerUrlInp.value : currentReceiptFooterImage);
+      s.receiptFooterEmoji = formWrap.querySelector('#setReceiptFooterEmoji')?.value.trim() || '';
+      s.receiptFooterMsg = formWrap.querySelector('#setReceiptFooterMsg')?.value.trim() || 'Thank you for your order';
+      s.receiptFooterSub = formWrap.querySelector('#setReceiptFooterSub')?.value.trim() || '';
 
       // Tracking Review Calligraphy & Star Labels Save (STARS PRESERVED)
-      state.store.trackingReviewTitle = formWrap.querySelector('#setTrackingTitle')?.value.trim() || 'BNC HayMate Bakery';
-      state.store.trackingReviewSub = formWrap.querySelector('#setTrackingSub')?.value.trim() || 'Thank you for your support';
-      state.store.trackingReviewBtnText = formWrap.querySelector('#setTrackingBtnText')?.value.trim() || 'เขียนรีวิวและให้คะแนนร้านค้า';
-      state.store.starLabel1 = formWrap.querySelector('#setStarLabel1')?.value.trim() || '1 ดาว - ต้องปรับปรุง';
-      state.store.starLabel2 = formWrap.querySelector('#setStarLabel2')?.value.trim() || '2 ดาว - พอใช้ได้';
-      state.store.starLabel3 = formWrap.querySelector('#setStarLabel3')?.value.trim() || '3 ดาว - ปานกลาง / รสชาติดี';
-      state.store.starLabel4 = formWrap.querySelector('#setStarLabel4')?.value.trim() || '4 ดาว - อร่อยและประทับใจมาก';
-      state.store.starLabel5 = formWrap.querySelector('#setStarLabel5')?.value.trim() || '5 ดาว - ประทับใจมากที่สุด ยอดเยี่ยม!';
+      s.trackingReviewTitle = formWrap.querySelector('#setTrackingTitle')?.value.trim() || 'BNC HayMate Bakery';
+      s.trackingReviewSub = formWrap.querySelector('#setTrackingSub')?.value.trim() || 'Thank you for your support';
+      s.trackingReviewBtnText = formWrap.querySelector('#setTrackingBtnText')?.value.trim() || 'เขียนรีวิวและให้คะแนนร้านค้า';
+      s.starLabel1 = formWrap.querySelector('#setStarLabel1')?.value.trim() || '1 ดาว - ต้องปรับปรุง';
+      s.starLabel2 = formWrap.querySelector('#setStarLabel2')?.value.trim() || '2 ดาว - พอใช้ได้';
+      s.starLabel3 = formWrap.querySelector('#setStarLabel3')?.value.trim() || '3 ดาว - ปานกลาง / รสชาติดี';
+      s.starLabel4 = formWrap.querySelector('#setStarLabel4')?.value.trim() || '4 ดาว - อร่อยและประทับใจมาก';
+      s.starLabel5 = formWrap.querySelector('#setStarLabel5')?.value.trim() || '5 ดาว - ประทับใจมากที่สุด ยอดเยี่ยม!';
 
       // Save Stock Threshold Settings
-      state.store.stockLowThreshold = Math.max(1, Number(formWrap.querySelector('#setStockLowThreshold')?.value || 100));
-      state.store.stockOutThreshold = Math.max(0, Number(formWrap.querySelector('#setStockOutThreshold')?.value || 0));
-      state.store.stockHealthyLabel = formWrap.querySelector('#setStockHealthyLabel')?.value.trim() || 'Healthy';
-      state.store.stockLowLabel = formWrap.querySelector('#setStockLowLabel')?.value.trim() || 'Low';
-      state.store.stockOutLabel = formWrap.querySelector('#setStockOutLabel')?.value.trim() || 'Out of stock';
+      s.stockLowThreshold = Math.max(1, Number(formWrap.querySelector('#setStockLowThreshold')?.value || 100));
+      s.stockOutThreshold = Math.max(0, Number(formWrap.querySelector('#setStockOutThreshold')?.value || 0));
+      s.stockHealthyLabel = formWrap.querySelector('#setStockHealthyLabel')?.value.trim() || 'Healthy';
+      s.stockLowLabel = formWrap.querySelector('#setStockLowLabel')?.value.trim() || 'Low';
+      s.stockOutLabel = formWrap.querySelector('#setStockOutLabel')?.value.trim() || 'Out of stock';
 
       // Save Sticky Note Customization
-      state.store.stickyNoteBg = formWrap.querySelector('#setStickyBg')?.value || '#FFFDF2';
-      state.store.stickyNoteBorder = formWrap.querySelector('#setStickyBorder')?.value || '#EFE6C7';
-      state.store.stickyNoteBottomBorder = formWrap.querySelector('#setStickyBottom')?.value || '#DFD2A8';
-      state.store.stickyNotePinColor = formWrap.querySelector('#setStickyPin')?.value || '#EFA6C1';
+      s.stickyNoteBg = formWrap.querySelector('#setStickyBg')?.value || '#FFFDF2';
+      s.stickyNoteBorder = formWrap.querySelector('#setStickyBorder')?.value || '#EFE6C7';
+      s.stickyNoteBottomBorder = formWrap.querySelector('#setStickyBottom')?.value || '#DFD2A8';
+      s.stickyNotePinColor = formWrap.querySelector('#setStickyPin')?.value || '#EFA6C1';
       applyStickyNoteTheme();
 
       // Save QR Code Payment Image
-      state.store.qr_image_url = currentQrPaymentImage;
+      s.qr_image_url = currentQrPaymentImage;
 
       // Save Payment Accounts
-      state.store.payment_accounts = currentPaymentAccounts.map(acc => ({
+      s.payment_accounts = currentPaymentAccounts.map(acc => ({
         id: acc.id || Date.now(),
         type: acc.type || 'bank',
         image: acc.image || '',
@@ -6260,31 +6268,31 @@
       }));
 
       // Legacy fallback
-      if (state.store.payment_accounts.length > 0) {
-        state.store.bank_name = state.store.payment_accounts[0].title;
-        state.store.bank_account = state.store.payment_accounts[0].account_number;
-        state.store.account_holder = state.store.payment_accounts[0].account_holder;
+      if (s.payment_accounts.length > 0) {
+        s.bank_name = s.payment_accounts[0].title;
+        s.bank_account = s.payment_accounts[0].account_number;
+        s.account_holder = s.payment_accounts[0].account_holder;
       }
 
-      state.store.name = formWrap.querySelector('#setStoreName')?.value.trim() || 'BNC HayMate';
-      state.store.tagline = formWrap.querySelector('#setStoreTagline')?.value.trim() || 'Handmade sweet things';
-      state.store.currency = formWrap.querySelector('#setCurrency')?.value || 'THB (฿)';
-      state.store.timezone = formWrap.querySelector('#setTimezone')?.value || 'UTC+7 Bangkok';
+      s.name = formWrap.querySelector('#setStoreName')?.value.trim() || 'BNC HayMate';
+      s.tagline = formWrap.querySelector('#setStoreTagline')?.value.trim() || 'Handmade sweet things';
+      s.currency = formWrap.querySelector('#setCurrency')?.value || 'THB (฿)';
+      s.timezone = formWrap.querySelector('#setTimezone')?.value || 'UTC+7 Bangkok';
 
       const pinVal = formWrap.querySelector('#setAdminPin')?.value.trim();
       if (pinVal && pinVal.length === 6 && /^\d+$/.test(pinVal)) {
         state.correctPin = pinVal;
-        state.store.pin = pinVal;
+        s.pin = pinVal;
       }
       const delPinVal = formWrap.querySelector('#setDeletePin')?.value.trim();
       if (delPinVal && delPinVal.length === 6 && /^\d+$/.test(delPinVal)) {
         state.deletePin = delPinVal;
-        state.store.deletePin = delPinVal;
+        s.deletePin = delPinVal;
       }
 
       // Save Theme & Color instantly
-      state.store.color = state.color;
-      state.store.theme = state.theme;
+      s.color = state.color;
+      s.theme = state.theme;
       applyAppTheme(state.color, state.theme);
       try {
         localStorage.setItem('haypos_color', state.color);
@@ -6298,6 +6306,7 @@
 
       // Sync all settings, themes, banners across all devices & persist to Supabase
       syncStoreSettingsAcrossDevices();
+      try { sessionStorage.removeItem('haypos_settings_draft'); } catch(e) {}
 
       renderMenu();
       renderPage();
@@ -6381,8 +6390,8 @@
       state.color = selectedColor;
       state.theme = 'light';
       if (state.store) {
-        state.store.color = selectedColor;
-        state.store.theme = 'light';
+        s.color = selectedColor;
+        s.theme = 'light';
       }
       applyAppTheme(selectedColor, 'light');
       formWrap.querySelectorAll('.swatch-btn').forEach(x => {
@@ -6644,8 +6653,8 @@
     root.appendChild(el(`
       <div class="page-head">
         <div>
-          <h1 class="page-title" style="font-family:'Sunshiney', cursive; font-size:36px; font-weight:700; color:var(--accent-text); letter-spacing:0.5px; line-height:1.1;">${escapeHTML(state.store.storefrontTitle || 'Customer store')}</h1>
-          <div class="page-sub" style="font-family:'Plus Jakarta Sans', system-ui, sans-serif; font-size:13px; color:var(--muted); font-weight:500; margin-top:2px;">${escapeHTML(state.store.storefrontSub || 'Online storefront view')}</div>
+          <h1 class="page-title" style="font-family:'Sunshiney', cursive; font-size:36px; font-weight:700; color:var(--accent-text); letter-spacing:0.5px; line-height:1.1;">${escapeHTML(s.storefrontTitle || 'Customer store')}</h1>
+          <div class="page-sub" style="font-family:'Plus Jakarta Sans', system-ui, sans-serif; font-size:13px; color:var(--muted); font-weight:500; margin-top:2px;">${escapeHTML(s.storefrontSub || 'Online storefront view')}</div>
         </div>
         <div class="tabs" id="storeTabs">
           <div class="tab active" data-s="home">Home</div>
@@ -6800,18 +6809,18 @@
         });
 
         // 2. Compact Hero Banner (Dynamic from state.store - supports Image or Emoji)
-        const heroGraphicHtml = (state.store.heroIconType === 'image' && state.store.heroImage)
-          ? `<img src="${escapeHTML(state.store.heroImage)}" alt="Hero" style="width:38px; height:38px; object-fit:contain; border-radius:10px; display:block;" onerror="this.style.display='none';" />`
-          : `<div style="font-size:28px;">${escapeHTML(state.store.heroEmoji || '')}</div>`;
+        const heroGraphicHtml = (s.heroIconType === 'image' && s.heroImage)
+          ? `<img src="${escapeHTML(s.heroImage)}" alt="Hero" style="width:38px; height:38px; object-fit:contain; border-radius:10px; display:block;" onerror="this.style.display='none';" />`
+          : `<div style="font-size:28px;">${escapeHTML(s.heroEmoji || '')}</div>`;
 
         const compactHero = el(`
           <div class="store-hero">
             <div style="flex:1;">
-              <h2 style="font-size:15.5px; font-weight:800;">${escapeHTML(state.store.heroTitle || 'Fresh from the oven, daily')}</h2>
-              <p style="font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(state.store.heroSub || 'Handmade cakes, pastries, and rose-scented drinks.')}</p>
+              <h2 style="font-size:15.5px; font-weight:800;">${escapeHTML(s.heroTitle || 'Fresh from the oven, daily')}</h2>
+              <p style="font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(s.heroSub || 'Handmade cakes, pastries, and rose-scented drinks.')}</p>
             </div>
             <div class="flex items-center gap-2">
-              <button class="btn btn-primary btn-sm" id="btnHeroShop" style="font-size:12px; padding:6px 14px;">${escapeHTML(state.store.heroBtnText || 'Shop Menu (320 items)')}</button>
+              <button class="btn btn-primary btn-sm" id="btnHeroShop" style="font-size:12px; padding:6px 14px;">${escapeHTML(s.heroBtnText || 'Shop Menu (320 items)')}</button>
               ${heroGraphicHtml}
             </div>
           </div>
@@ -6825,7 +6834,7 @@
         });
 
         // 3. 4 Highlights & Popular Picks (Dynamic from state.store - supports Image or Emoji)
-        const hList = (state.store.highlights && state.store.highlights.length) ? state.store.highlights : DEFAULT_STORE_CONFIG.highlights;
+        const hList = (s.highlights && s.highlights.length) ? s.highlights : DEFAULT_STORE_CONFIG.highlights;
         view.appendChild(el(`
           <div class="grid stats" style="margin-top:16px">
             ${hList.map(h => {
@@ -6843,8 +6852,8 @@
           <div class="card" style="margin-top:16px">
             <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
               <div>
-                <div class="card-title">${escapeHTML(state.store.popularTitle || 'Menu & Products')} (${PRODUCTS.length})</div>
-                <div class="card-sub">${escapeHTML(state.store.popularSub || 'เลือกชมและสั่งซื้อสินค้าขนมอบและเครื่องดื่มสดใหม่')}</div>
+                <div class="card-title">${escapeHTML(s.popularTitle || 'Menu & Products')} (${PRODUCTS.length})</div>
+                <div class="card-sub">${escapeHTML(s.popularSub || 'เลือกชมและสั่งซื้อสินค้าขนมอบและเครื่องดื่มสดใหม่')}</div>
               </div>
               <button class="btn btn-primary btn-sm" id="btnHomeViewAllMenu" style="font-weight:700;">ดูเมนูทั้งหมด (${PRODUCTS.length} รายการ) →</button>
             </div>
@@ -7302,15 +7311,15 @@
               
               <!-- QR Code Preview -->
               <div class="file-preview" style="aspect-ratio:auto; padding:14px; margin-top:8px; text-align:center; background:var(--card); border:1.5px solid var(--border); border-radius:14px;">
-                ${state.store.qr_image_url
-                  ? `<img src="${escapeHTML(state.store.qr_image_url)}" alt="PromptPay QR" style="width:140px; height:140px; object-fit:contain; border-radius:10px; margin:0 auto 6px; display:block; box-shadow:var(--shadow-soft);" onerror="this.style.display='none';" />`
+                ${s.qr_image_url
+                  ? `<img src="${escapeHTML(s.qr_image_url)}" alt="PromptPay QR" style="width:140px; height:140px; object-fit:contain; border-radius:10px; margin:0 auto 6px; display:block; box-shadow:var(--shadow-soft);" onerror="this.style.display='none';" />`
                   : `<div class="qr" style="width:90px; height:90px; margin:0 auto 6px;"></div>`}
                 <div style="font-size:12px; font-weight:800; color:var(--accent-text);">PromptPay QR Code (สแกนจ่ายเงิน)</div>
               </div>
 
               <!-- Bank & Wallet Transfer Details with Copy Buttons (Dynamic List from Settings) -->
               <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
-                ${(state.store.payment_accounts && state.store.payment_accounts.length > 0 ? state.store.payment_accounts : DEFAULT_STORE_CONFIG.payment_accounts).map(acc => {
+                ${(s.payment_accounts && s.payment_accounts.length > 0 ? s.payment_accounts : DEFAULT_STORE_CONFIG.payment_accounts).map(acc => {
                   const accIconHtml = acc.image
                     ? `<img src="${escapeHTML(acc.image)}" alt="Account Logo" style="width:20px; height:20px; object-fit:contain; border-radius:5px; display:inline-block; vertical-align:middle;" onerror="this.style.display='none';" />`
                     : `<span style="display:inline-flex; align-items:center; color:var(--accent-text);">${ICONS.bank}</span>`;
@@ -7635,17 +7644,17 @@
         });
       } else if (key === 'receipt') {
         const latestOrder = ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', farm_name: 'BNC Hay Farm', farm_tag: '#FARM-01', date: new Date().toISOString().split('T')[0], total: 35.30, subtotal: 35.30, discount: 0, delivery: 0 };
-        const logoType = state.store.receiptLogoType || 'emoji';
-        const logoImage = state.store.receiptLogoImage || '';
-        const logoEmoji = state.store.receiptLogoEmoji || 'B';
-        const storeName = state.store.receiptStoreName || (state.store.name ? state.store.name + ' Bakery' : 'BNC HayMate Bakery');
-        const storeSub = state.store.receiptStoreAddress || '14 Sukhumvit Rd · Bangkok';
+        const logoType = s.receiptLogoType || 'emoji';
+        const logoImage = s.receiptLogoImage || '';
+        const logoEmoji = s.receiptLogoEmoji || 'B';
+        const storeName = s.receiptStoreName || (s.name ? s.name + ' Bakery' : 'BNC HayMate Bakery');
+        const storeSub = s.receiptStoreAddress || '14 Sukhumvit Rd · Bangkok';
 
-        const footerType = state.store.receiptFooterType || 'qr';
-        const footerImage = state.store.receiptFooterImage || '';
-        const footerEmoji = state.store.receiptFooterEmoji || '';
-        const footerMsg = state.store.receiptFooterMsg || 'Thank you for your order ';
-        const footerSub = state.store.receiptFooterSub || '';
+        const footerType = s.receiptFooterType || 'qr';
+        const footerImage = s.receiptFooterImage || '';
+        const footerEmoji = s.receiptFooterEmoji || '';
+        const footerMsg = s.receiptFooterMsg || 'Thank you for your order ';
+        const footerSub = s.receiptFooterSub || '';
 
         const logoHtml = (logoType === 'image' && logoImage)
           ? `<img src="${escapeHTML(logoImage)}" alt="Store Logo" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';" /><div style="display:none;">${escapeHTML(logoEmoji)}</div>`
@@ -7715,9 +7724,9 @@
         });
       } else if (key === 'tracking') {
         const latestOrder = ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', date: new Date().toISOString().split('T')[0], status: 'waiting' };
-        const trackingTitle = state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'BNC HayMate';
-        const trackingSub = state.store.trackingReviewSub || '';
-        const trackingBtn = state.store.trackingReviewBtnText || 'เขียนรีวิว & ให้คะแนนร้าน';
+        const trackingTitle = s.trackingReviewTitle || s.receiptStoreName || s.name || 'BNC HayMate';
+        const trackingSub = s.trackingReviewSub || '';
+        const trackingBtn = s.trackingReviewBtnText || 'เขียนรีวิว & ให้คะแนนร้าน';
 
         view.appendChild(el(`
           <div class="card" style="max-width:560px; margin:0 auto;">
@@ -7775,6 +7784,66 @@
   PAGES.checkout = (root) => {
     state.storeTab = 'checkout';
     PAGES.store(root);
+
+    // Auto-save Settings Draft to sessionStorage on any user keystroke/change
+    const saveSettingsDraft = () => {
+      try {
+        const d = {
+          loadingTitle: formWrap.querySelector('#setLoadingTitle')?.value,
+          storefrontTitle: formWrap.querySelector('#setStorefrontTitle')?.value,
+          storefrontSub: formWrap.querySelector('#setStorefrontSub')?.value,
+          heroTitle: formWrap.querySelector('#setHeroTitle')?.value,
+          heroSub: formWrap.querySelector('#setHeroSub')?.value,
+          heroBtnText: formWrap.querySelector('#setHeroBtnText')?.value,
+          heroIconType,
+          heroImage,
+          receiptStoreName: formWrap.querySelector('#setReceiptStoreName')?.value,
+          receiptHeaderMsg: formWrap.querySelector('#setReceiptHeaderMsg')?.value,
+          receiptContactPhone: formWrap.querySelector('#setReceiptContactPhone')?.value,
+          receiptTaxId: formWrap.querySelector('#setReceiptTaxId')?.value,
+          receiptAddress: formWrap.querySelector('#setReceiptAddress')?.value,
+          receiptLogoType: currentReceiptLogoType,
+          receiptLogoImage: currentReceiptLogoImage,
+          receiptFooterType: currentReceiptFooterType,
+          receiptFooterImage: currentReceiptFooterImage,
+          receiptFooterEmoji: formWrap.querySelector('#setReceiptFooterEmoji')?.value,
+          receiptFooterMsg: formWrap.querySelector('#setReceiptFooterMsg')?.value,
+          receiptFooterSub: formWrap.querySelector('#setReceiptFooterSub')?.value,
+          trackingReviewTitle: formWrap.querySelector('#setTrackingTitle')?.value,
+          trackingReviewSub: formWrap.querySelector('#setTrackingSub')?.value,
+          trackingReviewBtnText: formWrap.querySelector('#setTrackingBtnText')?.value,
+          starLabel1: formWrap.querySelector('#setStarLabel1')?.value,
+          starLabel2: formWrap.querySelector('#setStarLabel2')?.value,
+          starLabel3: formWrap.querySelector('#setStarLabel3')?.value,
+          starLabel4: formWrap.querySelector('#setStarLabel4')?.value,
+          starLabel5: formWrap.querySelector('#setStarLabel5')?.value,
+          stockLowThreshold: formWrap.querySelector('#setStockLowThreshold')?.value,
+          stockOutThreshold: formWrap.querySelector('#setStockOutThreshold')?.value,
+          stockHealthyLabel: formWrap.querySelector('#setStockHealthyLabel')?.value,
+          stockLowLabel: formWrap.querySelector('#setStockLowLabel')?.value,
+          stockOutLabel: formWrap.querySelector('#setStockOutLabel')?.value,
+          stickyNoteBg: formWrap.querySelector('#setStickyBg')?.value,
+          stickyNoteBorder: formWrap.querySelector('#setStickyBorder')?.value,
+          stickyNoteBottomBorder: formWrap.querySelector('#setStickyBottom')?.value,
+          stickyNotePinColor: formWrap.querySelector('#setStickyPin')?.value,
+          qr_image_url: currentQrPaymentImage,
+          payment_accounts: currentPaymentAccounts,
+          highlights: currentHighlights,
+          reviewPopupTitle: formWrap.querySelector('#setReviewPopupTitle')?.value,
+          reviewPopupImage: formWrap.querySelector('#setReviewPopupImgUrl')?.value,
+          name: formWrap.querySelector('#setStoreName')?.value,
+          tagline: formWrap.querySelector('#setStoreTagline')?.value,
+          currency: formWrap.querySelector('#setCurrency')?.value,
+          timezone: formWrap.querySelector('#setTimezone')?.value,
+          pin: formWrap.querySelector('#setAdminPin')?.value,
+          deletePin: formWrap.querySelector('#setDeletePin')?.value
+        };
+        sessionStorage.setItem('haypos_settings_draft', JSON.stringify(d));
+      } catch(e) {}
+    };
+
+    formWrap.addEventListener('input', saveSettingsDraft);
+    formWrap.addEventListener('change', saveSettingsDraft);
   };
 
   // ============================================================
