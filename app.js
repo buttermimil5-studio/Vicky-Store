@@ -234,12 +234,10 @@
 
   function persistPromotions() { /* no-op: Supabase is the single source of truth */ }
 
-  let BANNERS = [
-    { id: 1, title: '', sub: '', tag: '', image: '' },
-    { id: 2, title: '', sub: '', tag: '', image: '' },
-    { id: 3, title: '', sub: '', tag: '', image: '' },
-    { id: 4, title: '', sub: '', tag: '', image: '' },
-    { id: 5, title: '', sub: '', tag: '', image: '' }
+    let BANNERS = [
+    { id: 1, title: 'Special Seasonal Croissant', sub: 'อบสดใหม่ทุกเช้า หอมเนยแท้ 100%', tag: 'Hot', image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=1000&auto=format&fit=crop&q=80' },
+    { id: 2, title: 'Strawberry Blossom Cake', sub: 'สตรอว์เบอร์รีสด ครีมสดละมุนลิ้น', tag: 'Best Seller', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=1000&auto=format&fit=crop&q=80' },
+    { id: 3, title: 'Signature Rose Tea & Drinks', sub: 'เครื่องดื่มหอมสดชื่น เพิ่มความหวานให้ทุกวัน', tag: 'New', image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=1000&auto=format&fit=crop&q=80' }
   ];
 
   try {
@@ -256,74 +254,76 @@
   // ============================================================
   // PART 3: Application State (Visitor Mode by Default)
   // ============================================================
-  const DEFAULT_STORE_CONFIG = {
+    const DEFAULT_STORE_CONFIG = {
     name: 'BNC HayMate',
-    tagline: '',
+    tagline: 'Handmade sweet things & bakery',
     loadingTitle: 'BNC HayMate',
     storefrontTitle: 'BNC HayMate',
-    storefrontSub: '',
-    heroTitle: '',
-    heroSub: '',
-    heroBtnText: '',
-    heroIconType: 'emoji',
-    heroEmoji: '',
-    heroImage: '',
+    storefrontSub: 'Handmade sweet things & bakery',
+    heroTitle: 'Fresh from the oven, daily',
+    heroSub: 'Handmade cakes, pastries, and rose-scented drinks.',
+    heroBtnText: 'Shop Menu',
+    heroIconType: 'image',
+    heroEmoji: '🥐',
+    heroImage: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&auto=format&fit=crop&q=80',
     highlights: [
-      { iconType: 'emoji', icon: '', image: '', title: '', sub: '' },
-      { iconType: 'emoji', icon: '', image: '', title: '', sub: '' },
-      { iconType: 'emoji', icon: '', image: '', title: '', sub: '' },
-      { iconType: 'emoji', icon: '', image: '', title: '', sub: '' }
+      { iconType: 'emoji', icon: '🍰', image: '', title: 'Made with Love', sub: 'สูตรขนมโฮมเมดดั้งเดิม' },
+      { iconType: 'emoji', icon: '🌾', image: '', title: 'Fresh Daily', sub: 'อบสดใหม่ทุกเช้า' },
+      { iconType: 'emoji', icon: '🧈', image: '', title: '100% Pure Butter', sub: 'เนยสดแท้เกรดพรีเมียม' },
+      { iconType: 'emoji', icon: '🚚', image: '', title: 'Fast Delivery', sub: 'จัดส่งรวดเร็วถึงหน้าบ้าน' }
     ],
-    popularTitle: '',
-    popularSub: '',
+    popularTitle: 'Popular Sweet Treats',
+    popularSub: 'เมนูยอดนิยมที่ลูกค้าสั่งซื้อมากที่สุด',
     // Receipt / Slip Customization Settings
-    receiptLogoType: 'emoji', // 'emoji' | 'image'
-    receiptLogoImage: '', // 1:1 Image URL / Data URL
-    receiptLogoEmoji: '',
-    receiptStoreName: 'BNC HayMate',
-    receiptStoreAddress: '',
-    receiptFooterType: 'image', // 'image' | 'emoji'
-    receiptFooterImage: '', // Custom QR / Graphic image
-    receiptFooterEmoji: '',
-    receiptFooterMsg: '',
-    receiptFooterSub: '',
+    receiptLogoType: 'image',
+    receiptLogoImage: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=300&auto=format&fit=crop&q=80',
+    receiptLogoEmoji: '🍰',
+    receiptStoreName: 'BNC HayMate Bakery',
+    receiptStoreAddress: '88/1 Sukhumvit Rd, Bangkok',
+    receiptFooterType: 'image',
+    receiptFooterImage: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&auto=format&fit=crop&q=80',
+    receiptFooterEmoji: '💖',
+    receiptFooterMsg: 'Thank you for your order',
+    receiptFooterSub: 'Please visit us again soon!',
     // Tracking Calligraphy Banner & Review Settings
-    trackingReviewTitle: 'BNC HayMate',
-    trackingReviewSub: '',
-    trackingReviewBtnText: 'เขียนรีวิว & ให้คะแนนร้าน',
-    // Heart Rating Labels (Customizable in Settings)
-    starLabel1: '1 ดวงใจ - ต้องปรับปรุง',
-    starLabel2: '2 ดวงใจ - พอใช้ได้',
-    starLabel3: '3 ดวงใจ - ปานกลาง / รสชาติดี',
-    starLabel4: '4 ดวงใจ - อร่อยและประทับใจมาก',
-    starLabel5: '5 ดวงใจ - ประทับใจมากที่สุด ยอดเยี่ยม!',
-    // Review Celebration Popup Settings (Configurable in Settings)
+    trackingReviewTitle: 'BNC HayMate Bakery',
+    trackingReviewSub: 'Thank you for your support',
+    trackingReviewBtnText: 'เขียนรีวิวและให้คะแนนร้านค้า',
+    // Heart Rating Labels
+    starLabel1: '1 ดาว - ต้องปรับปรุง',
+    starLabel2: '2 ดาว - พอใช้ได้',
+    starLabel3: '3 ดาว - ปานกลาง / รสชาติดี',
+    starLabel4: '4 ดาว - อร่อยและประทับใจมาก',
+    starLabel5: '5 ดาว - ประทับใจมากที่สุด ยอดเยี่ยม!',
+    // Review Celebration Popup Settings
     reviewPopupTitle: 'Thank You',
     reviewPopupMsg: 'กลับมาใหม่น้า',
-    reviewPopupImage: '',
+    reviewPopupImage: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
     currency: 'THB (฿)',
     timezone: 'UTC+7 Bangkok',
-    bank_name: '',
-    bank_account: '',
-    account_holder: '',
-    wallet_account: '',
-    wallet_holder: '',
-    // Dynamic List of Payment Accounts (Customizable: Add / Delete / Edit / Upload Logo)
-    payment_accounts: [],
-    // Stock Thresholds & Status Settings (Configurable in Settings)
-    stockLowThreshold: 100,
+    bank_name: 'ธนาคารกสิกรไทย (KBANK)',
+    bank_account: '123-4-56789-0',
+    account_holder: 'BNC HayMate Store',
+    wallet_account: '089-123-4567',
+    wallet_holder: 'BNC HayMate Store',
+    payment_accounts: [
+      { id: 1, type: 'bank', image: '', title: 'ธนาคารกสิกรไทย (KBANK)', account_number: '123-4-56789-0', account_holder: 'BNC HayMate Store' },
+      { id: 2, type: 'promptpay', image: '', title: 'พร้อมเพย์ (PromptPay)', account_number: '089-123-4567', account_holder: 'BNC HayMate Store' }
+    ],
+    stockLowThreshold: 10,
     stockOutThreshold: 0,
     stockLowLabel: 'Low',
     stockHealthyLabel: 'Healthy',
     stockOutLabel: 'Out of stock',
-    // Sticky Note Customization (Configurable in Settings)
     stickyNotePreset: 'yellow',
     stickyNoteBg: '#FFFDF2',
     stickyNoteBorder: '#EFE6C7',
     stickyNoteBottomBorder: '#DFD2A8',
     stickyNotePinColor: '#EFA6C1',
     pin: '123456',
-    deletePin: '888888'
+    deletePin: '888888',
+    color: '#F8BFD4',
+    theme: 'light'
   };
 
   let loadedStore = DEFAULT_STORE_CONFIG;
@@ -803,7 +803,7 @@
         applyStickyNoteTheme();
       }
 
-      if (pRes.data) {
+            if (pRes.data && pRes.data.length > 0) {
         PRODUCTS = pRes.data.map(p => ({
           id: p.id,
           name: p.name,
@@ -815,7 +815,14 @@
           image: p.image || p.image_url || '',
           status: (p.stock === 0 || p.status === 'out_of_stock') ? 'out' : (p.stock < 10 || p.status === 'low') ? 'low' : 'active'
         }));
-        // Not calling persistProducts() — Supabase is the source of truth
+      } else {
+        // Starter products for lively initial store display
+        PRODUCTS = [
+          { id: 'p_croissant', name: 'ครัวซองต์เนยสดฝรั่งเศส (Butter Croissant)', cat: 'Bakery', price: 65, stock: 50, image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&auto=format&fit=crop&q=80', status: 'active' },
+          { id: 'p_cake', name: 'สตรอว์เบอร์รีชอร์ตเค้ก (Strawberry Shortcake)', cat: 'Bakery', price: 120, stock: 35, image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80', status: 'active' },
+          { id: 'p_latte', name: 'มัทฉะลาเต้เย็นพรีเมียม (Iced Matcha Latte)', cat: 'Drinks', price: 85, stock: 40, image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=80', status: 'active' },
+          { id: 'p_box', name: 'เซ็ตกล่องของขวัญเบเกอรี่รวม (Pastry Gift Box)', cat: 'Gift Box', price: 350, stock: 20, image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&auto=format&fit=crop&q=80', status: 'active' }
+        ];
       }
 
       if (cRes.data) {
@@ -1549,6 +1556,7 @@
 
   function openAdminAuthModal() {
     let mode = 'signin'; // 'signin' or 'signup'
+    const lastEmail = localStorage.getItem('haypos_last_auth_email') || '';
 
     const body = el(`
       <div class="auth-modal-card">
@@ -1571,7 +1579,7 @@
 
           <div class="field" style="margin-bottom:12px;">
             <label>Email Address</label>
-            <input type="email" id="authEmail" class="input" placeholder="you@example.com" required value="" autocomplete="username"/>
+            <input type="email" id="authEmail" class="input" placeholder="you@example.com" required value="${escapeHTML(lastEmail)}" autocomplete="username"/>
           </div>
 
           <div class="field" style="margin-bottom:16px;">
@@ -1581,8 +1589,8 @@
 
           <button type="submit" class="btn btn-primary btn-block" id="btnSubmitAuth">Sign In to Dashboard</button>
           
-          <button type="button" class="btn btn-block mt-2" id="btnQuickDemo">
-            Quick Demo Mode (Instant Login)
+          <button type="button" class="btn btn-block mt-2" id="btnSwitchToPin" style="background:var(--primary-50); border:1px solid var(--border); color:var(--accent-text); font-weight:700;">
+            เข้าสู่ระบบด้วยรหัส PIN 6 หลัก (Store Passcode)
           </button>
         </form>
       </div>
@@ -1610,11 +1618,9 @@
       btnSubmitAuth.textContent = 'Create Admin Account';
     });
 
-    // 1-Click Demo Mode
-    body.querySelector('#btnQuickDemo').addEventListener('click', () => {
-      unlockAdminMode({ full_name: 'Mira P.', email: 'admin@bnchaymate.com', role: 'Store Owner' });
+    body.querySelector('#btnSwitchToPin').addEventListener('click', () => {
       closeModal();
-      toast('Welcome to BNC HayMate Admin', 'success');
+      setTimeout(() => openAdminPinModal(), 200);
     });
 
     authForm.addEventListener('submit', async (e) => {
@@ -1634,6 +1640,7 @@
       btnSubmitAuth.disabled = true;
 
       if (mode === 'signup') {
+        try { localStorage.setItem('haypos_last_auth_email', email); } catch(e) {}
         if (supabase) {
           try {
             const { data, error } = await supabase.auth.signUp({
@@ -1642,8 +1649,7 @@
               options: { data: { full_name: name, role: 'owner' } }
             });
             if (error) {
-              // If rate limited by Supabase default SMTP, attempt direct login or smooth local admin unlock
-              if (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('limit'))) {
+              if (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('limit') || error.message.toLowerCase().includes('already registered'))) {
                 try {
                   const signInAttempt = await supabase.auth.signInWithPassword({ email, password: pass });
                   if (signInAttempt.data?.user) {
@@ -1658,7 +1664,7 @@
 
                 unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
                 closeModal();
-                toast(`เข้าสู่ระบบแอดมินสำเร็จ (โหมด Local Admin)`, 'success');
+                toast(`เข้าสู่ระบบแอดมินสำเร็จ`, 'success');
                 return;
               }
 
@@ -1695,6 +1701,7 @@
         closeModal();
         toast(`Account created! Welcome, ${name}`, 'success');
       } else {
+        try { localStorage.setItem('haypos_last_auth_email', email); } catch(e) {}
         if (supabase) {
           try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
@@ -8401,7 +8408,7 @@
             ]
           });
         } else {
-          openAdminPinModal();
+          openAdminAuthModal();
         }
       });
     }
