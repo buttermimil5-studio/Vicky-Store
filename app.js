@@ -693,7 +693,12 @@
     setTimeout(() => { t.style.opacity = 0; t.style.transform = 'translateX(120%)'; setTimeout(() => t.remove(), 300); }, 2600);
   }
 
+  let modalCloseTimer = null;
   function openModal({ title, body, actions }) {
+    if (modalCloseTimer) {
+      clearTimeout(modalCloseTimer);
+      modalCloseTimer = null;
+    }
     const root = $('#modalRoot');
     if (!root) return;
     root.innerHTML = '';
@@ -727,7 +732,12 @@
     const root = $('#modalRoot');
     if (!root) return;
     root.classList.remove('open');
-    setTimeout(() => { root.innerHTML = ''; }, 200);
+    if (modalCloseTimer) clearTimeout(modalCloseTimer);
+    modalCloseTimer = setTimeout(() => {
+      if (!root.classList.contains('open')) {
+        root.innerHTML = '';
+      }
+    }, 200);
   }
 
   function confirmDialog(msg, onYes) {
@@ -4423,7 +4433,7 @@
       body,
       actions: [
         { label: 'Cancel', kind: 'ghost' },
-        { label: 'ส่งรีวิว (Submit Review)', kind: 'primary', onClick: async () => {
+        { label: 'ส่งรีวิว (Submit Review)', kind: 'primary', close: false, onClick: async () => {
           const name = $('#revCustName')?.value.trim() || 'ลูกค้าคนพิเศษ';
           const text = $('#revCustMsg')?.value.trim() || 'ขนมอร่อยมาก แพ็กเกจน่ารักและจัดส่งรวดเร็วมากค่ะ';
           const avatar = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'AW';
@@ -4472,11 +4482,11 @@
             } catch (e) {}
           }
 
-          closeModal();
-          renderPage();
-          setTimeout(() => {
-            openReviewCelebrationModal();
-          }, 180);
+          if (['reviews', 'dashboard', 'store'].includes(state.page)) {
+            renderPage();
+          }
+
+          openReviewCelebrationModal();
         }}
       ]
     });
@@ -6695,6 +6705,10 @@
 
     const drawStore = (key) => {
       currentStoreTab = key;
+      state.storeTab = key;
+      root.querySelectorAll('#storeTabs .tab').forEach(x => {
+        x.classList.toggle('active', x.dataset.s === key);
+      });
       view.innerHTML = '';
       updateFloatingCartBtn();
       if (key === 'home') {
@@ -7736,15 +7750,12 @@
     };
 
     const initialTab = state.storeTab || 'home';
-    state.storeTab = 'home'; // reset
     root.querySelectorAll('#storeTabs .tab').forEach(x => {
       x.classList.toggle('active', x.dataset.s === initialTab);
     });
     drawStore(initialTab);
 
     root.querySelectorAll('#storeTabs .tab').forEach(t => t.addEventListener('click', () => {
-      root.querySelectorAll('#storeTabs .tab').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
       drawStore(t.dataset.s);
     }));
   };
