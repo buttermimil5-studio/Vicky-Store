@@ -4343,7 +4343,7 @@
 
         <!-- Chubby Heart Button with Home SVG Icon Inside -->
         <button type="button" class="btn-chubby-heart" id="btnCelebrationHome" title="กลับหน้าแรก (Back to Home)" aria-label="Home">
-          <svg viewBox="0 0 100 90" width="76" height="70" fill="var(--primary-600)" style="display:block; filter:drop-shadow(0 4px 10px rgba(239, 166, 193, 0.35));">
+          <svg viewBox="0 0 100 90" width="76" height="70" fill="var(--primary-600)" style="display:block;">
             <path d="M50 82 C50 82 8 52 8 28 C8 12 22 4 35 4 C43 4 47 8 50 12 C53 8 57 4 65 4 C78 4 92 12 92 28 C92 52 50 82 50 82 Z" />
           </svg>
           <div class="heart-home-icon">
@@ -4359,8 +4359,14 @@
     body.querySelector('#btnCelebrationHome')?.addEventListener('click', () => {
       closeModal();
       state.page = 'store';
+      state.storeTab = 'home';
       renderMenu();
       renderPage();
+      const homeTab = document.querySelector('#storeTabs [data-s="home"]');
+      if (homeTab) {
+        homeTab.click();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     openModal({
