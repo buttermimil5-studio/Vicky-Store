@@ -1731,81 +1731,79 @@
           return;
         }
 
-        if (supabase) {
-          try {
-            const { data, error } = await supabase.auth.signUp({
-              email,
-              password: pass,
-              options: { data: { full_name: name, role: 'owner' } }
-            });
+        if (!supabase) {
+          toast('ไม่สามารถเชื่อมต่อ Supabase ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', 'error');
+          btnSubmitAuth.textContent = 'Create Admin Account';
+          btnSubmitAuth.disabled = false;
+          return;
+        }
 
-            if (error) {
-              console.warn('Supabase signUp error:', error.message);
-              toast(`สร้างบัญชีใน Supabase ไม่สำเร็จ: ${error.message}`, 'error');
-              btnSubmitAuth.textContent = 'Create Admin Account';
-              btnSubmitAuth.disabled = false;
-              return;
-            }
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password: pass,
+            options: { data: { full_name: name, role: 'owner' } }
+          });
 
-            if (data?.user) {
-              saveLocalAdminAccount({ email, password: pass, full_name: name, role: 'Store Owner' });
-              unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
-              closeModal();
-              toast(`สร้างบัญชีใน Supabase และเข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${name}`, 'success');
-              return;
-            }
-          } catch (err) {
-            console.warn('Supabase signUp exception:', err);
-            toast(`เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase: ${err.message}`, 'error');
+          if (error) {
+            console.warn('Supabase signUp error:', error.message);
+            toast(`สร้างบัญชีใน Supabase ไม่สำเร็จ: ${error.message}`, 'error');
             btnSubmitAuth.textContent = 'Create Admin Account';
             btnSubmitAuth.disabled = false;
             return;
           }
-        }
 
-        // Offline mode fallback if supabase is not initialized
-        saveLocalAdminAccount({ email, password: pass, full_name: name, role: 'Store Owner' });
-        unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
-        closeModal();
-        toast(`สร้างบัญชีและเข้าสู่ระบบสำเร็จ (โหมด Local)! ยินดีต้อนรับคุณ ${name}`, 'success');
+          if (data?.user) {
+            unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
+            closeModal();
+            toast(`สร้างบัญชีใน Supabase และเข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${name}`, 'success');
+            return;
+          } else {
+            toast('Supabase ปฏิเสธการสร้างบัญชี กรุณาตรวจสอบ Email Rate Limit ใน Supabase', 'error');
+            btnSubmitAuth.textContent = 'Create Admin Account';
+            btnSubmitAuth.disabled = false;
+            return;
+          }
+        } catch (err) {
+          console.warn('Supabase signUp exception:', err);
+          toast(`เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase: ${err.message}`, 'error');
+          btnSubmitAuth.textContent = 'Create Admin Account';
+          btnSubmitAuth.disabled = false;
+          return;
+        }
       } else {
-        // Sign In Flow
-        let loggedInUser = null;
-
-        if (supabase) {
-          try {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-            if (!error && data?.user) {
-              let userName = name;
-              let userRole = 'Store Owner';
-              try {
-                const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', data.user.id).single();
-                if (profile?.full_name) userName = profile.full_name;
-                else if (data.user.user_metadata?.full_name) userName = data.user.user_metadata.full_name;
-                if (profile?.role) userRole = profile.role;
-              } catch (profErr) {
-                console.warn('Profile fetch notice:', profErr);
-              }
-              loggedInUser = { full_name: userName, email, role: userRole };
-              saveLocalAdminAccount({ email, password: pass, full_name: userName, role: userRole });
-            }
-          } catch (err) {
-            console.warn('Supabase signIn notice:', err);
-          }
+        // Strict Supabase Sign In Flow
+        if (!supabase) {
+          toast('ไม่สามารถเชื่อมต่อ Supabase ได้', 'error');
+          btnSubmitAuth.textContent = 'Sign In to Dashboard';
+          btnSubmitAuth.disabled = false;
+          return;
         }
 
-        // Fallback: Check local registered accounts store
-        if (!loggedInUser) {
-          const localAcc = findLocalAdminAccount(email, pass);
-          if (localAcc) {
-            loggedInUser = { full_name: localAcc.full_name, email: localAcc.email, role: localAcc.role || 'Store Owner' };
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+          if (error) {
+            toast(`Sign In Failed: ${error.message}`, 'error');
+            btnSubmitAuth.textContent = 'Sign In to Dashboard';
+            btnSubmitAuth.disabled = false;
+            return;
           }
-        }
 
-        if (loggedInUser) {
-          unlockAdminMode(loggedInUser);
-          closeModal();
-          toast(`ยินดีต้อนรับกลับ, ${loggedInUser.full_name}!`, 'success');
+          if (data?.user) {
+            let userName = name;
+            let userRole = 'Store Owner';
+            if (data.user.user_metadata?.full_name) userName = data.user.user_metadata.full_name;
+            const loggedInUser = { full_name: userName, email, role: userRole };
+            unlockAdminMode(loggedInUser);
+            closeModal();
+            toast(`ยินดีต้อนรับกลับ, ${loggedInUser.full_name}!`, 'success');
+            return;
+          }
+        } catch (err) {
+          console.warn('Supabase signIn exception:', err);
+          toast(`เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ${err.message}`, 'error');
+          btnSubmitAuth.textContent = 'Sign In to Dashboard';
+          btnSubmitAuth.disabled = false;
           return;
         }
 
