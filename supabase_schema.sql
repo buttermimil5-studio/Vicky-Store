@@ -170,6 +170,8 @@ CREATE TABLE store_settings (
     bank_account TEXT,
     account_holder TEXT,
     primary_color TEXT DEFAULT '#F8BFD4',
+    dark_mode BOOLEAN DEFAULT false,
+    theme_config JSONB,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -348,7 +348,11 @@
     orderFilter: 'all',
     orderSearch: '',
     theme: 'light',
-    color: '#F8BFD4',
+    color: (() => {
+      try {
+        return localStorage.getItem('haypos_color') || loadedStore.color || '#F8BFD4';
+      } catch(e) { return loadedStore.color || '#F8BFD4'; }
+    })(),
     font: 'Plus Jakarta Sans',
     selected: {},         // Cart: { productId: qty }
     checkoutForm: { name: '', farmName: '', farmTag: '', contact: '', uploadedSlipData: '' },
@@ -815,6 +819,7 @@
         if (ss.primary_color) {
           state.color = ss.primary_color;
           state.store.color = ss.primary_color;
+          try { localStorage.setItem('haypos_color', ss.primary_color); } catch(e){}
         }
         if (ss.dark_mode !== undefined && ss.dark_mode !== null) {
           state.theme = ss.dark_mode ? 'dark' : 'light';
@@ -8167,19 +8172,29 @@
     // 2. Persist to Supabase store_settings table
     if (supabase) {
       try {
-        await supabase.from('store_settings').upsert({
+        const basePayload = {
           store_id: storeId,
+          primary_color: state.color || '#F8BFD4',
           qr_image_url: state.store.qr_image_url || null,
           bank_name: state.store.bank_name || null,
           bank_account: state.store.bank_account || null,
-          account_holder: state.store.account_holder || null,
-          primary_color: state.color || '#F8BFD4',
+          account_holder: state.store.account_holder || null
+        };
+
+        const extendedPayload = {
+          ...basePayload,
           dark_mode: state.theme === 'dark',
           theme_config: {
             store: state.store,
             banners: BANNERS
           }
-        }, { onConflict: 'store_id' });
+        };
+
+        const { error: upsertErr } = await supabase.from('store_settings').upsert(extendedPayload, { onConflict: 'store_id' });
+        if (upsertErr) {
+          console.warn('Extended settings upsert notice, trying base settings:', upsertErr.message);
+          await supabase.from('store_settings').upsert(basePayload, { onConflict: 'store_id' });
+        }
 
         if (state.store.name) {
           await supabase.from('stores').update({
@@ -8335,13 +8350,7 @@
         e.stopPropagation();
         const selectedColor = swatch.dataset.c;
         if (selectedColor) {
-          state.color = selectedColor;
-          state.theme = 'light';
-          if (state.store) {
-            state.store.color = selectedColor;
-            state.store.theme = 'light';
-          }
-          applyAppTheme(selectedColor, 'light');
+          setColorAccent(selectedColor);
           toast(`เปลี่ยนโทนสีเป็น ${COLOR_PALETTES[selectedColor]?.name || 'ใหม่'} (โหมด Light) เรียบร้อย`, 'success');
         }
         return;

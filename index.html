@@ -15,6 +15,10 @@
         storeSettings.theme = 'light';
         localStorage.setItem('haypos_store_settings', JSON.stringify(storeSettings));
         lt = storeSettings.loadingTitle || storeSettings.name || 'BNC HayMate';
+        const savedColor = localStorage.getItem('haypos_color') || storeSettings.color;
+        if (savedColor) {
+          document.documentElement.style.setProperty('--primary', savedColor);
+        }
       } catch(e){}
       window.__SAVED_LOADING_TITLE = lt;
     } catch(e){}
