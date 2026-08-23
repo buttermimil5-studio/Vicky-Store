@@ -13,7 +13,8 @@
   // PART 1: Supabase Configuration
   // ============================================================
   const SUPABASE_URL = 'https://zxoahkhgnefgdsyaiyvx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
+  
   let supabase = null;
   function initSupabase() {
     if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -95,13 +96,20 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         }
         const blob = new Blob([ab], { type: 'image/jpeg' });
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
+        const bucketName = 'products';
+        let uploadRes = await supabase.storage
+          .from(bucketName)
           .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
 
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage
+        if (uploadRes.error) {
+          uploadRes = await supabase.storage
             .from('product-images')
+            .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+        }
+
+        if (!uploadRes.error) {
+          const { data: urlData } = supabase.storage
+            .from(bucketName)
             .getPublicUrl(filePath);
 
           if (urlData && urlData.publicUrl) {
@@ -794,8 +802,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
           price: Number(p.price || 0),
           stock: Number(p.stock !== undefined ? p.stock : 0),
           emoji: p.emoji || '',
-          image: p.image_url || '',
-          flavor: p.flavor || '',
+          image: p.image || p.image_url || '',
           status: (p.stock === 0 || p.status === 'out_of_stock') ? 'out' : (p.stock < 10 || p.status === 'low') ? 'low' : 'active'
         }));
         // Not calling persistProducts() — Supabase is the source of truth
@@ -3496,14 +3503,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
             existing.name = name;
             existing.cat = cat;
             existing.image = image;
-            existing.price = price;
-            existing.stock = stock;
-            existing.flavor = flavor;
-            existing.status = status;
+            existing.price = Number(price || 0);
+            existing.stock = Number(stock || 0);
+            existing.status = getStockStatusInfo(existing.stock).type === 'danger' ? 'out' : getStockStatusInfo(existing.stock).type === 'warn' ? 'low' : 'active';
             if (supabase) {
               const { error } = await supabase.from('products').update({
-                name, price, stock, status, flavor,
-                image_url: image || null
+                name,
+                price: Number(price || 0),
+                stock: Number(stock || 0),
+                cat: cat || 'Bakery',
+                image: image || null
               }).eq('id', existing.id);
               if (error) {
                 console.error('Product update error:', error);
@@ -3516,7 +3525,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
                 syncChannel.send({
                   type: 'broadcast',
                   event: 'product_updated',
-                  payload: { id: existing.id, name, cat, image, price, stock, flavor, status }
+                  payload: { id: existing.id, name, cat, image, price: existing.price, stock: existing.stock, status: existing.status }
                 });
               } catch (e) {}
             }
@@ -3528,10 +3537,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
               id: newId,
               name,
               cat,
-              price,
-              stock,
-              status,
-              flavor,
+              price: Number(price || 0),
+              stock: Number(stock || 0),
+              status: getStockStatusInfo(Number(stock || 0)).type === 'danger' ? 'out' : getStockStatusInfo(Number(stock || 0)).type === 'warn' ? 'low' : 'active',
               image
             };
 
@@ -3539,11 +3547,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
               const storeId = state.storeId || '00000000-0000-0000-0000-000000000001';
               const { data: inserted, error } = await supabase.from('products').insert({
                 name,
-                price,
-                stock,
-                status,
-                flavor,
-                image_url: image || null,
+                price: Number(price || 0),
+                stock: Number(stock || 0),
+                cat: cat || 'Bakery',
+                image: image || null,
                 store_id: storeId
               }).select().single();
 
@@ -3557,12 +3564,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
                 newProd = {
                   id: inserted.id,
                   name: inserted.name,
-                  cat: cat,
+                  cat: inserted.cat || cat,
                   price: Number(inserted.price || price),
                   stock: Number(inserted.stock !== undefined ? inserted.stock : stock),
-                  status: inserted.status || status,
-                  flavor: inserted.flavor || flavor,
-                  image: inserted.image_url || image
+                  status: getStockStatusInfo(inserted.stock).type === 'danger' ? 'out' : getStockStatusInfo(inserted.stock).type === 'warn' ? 'low' : 'active',
+                  image: inserted.image || image
                 };
               }
             }
