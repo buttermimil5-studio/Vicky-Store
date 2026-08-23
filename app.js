@@ -251,6 +251,9 @@
   // ============================================================
   const DEFAULT_STORE_CONFIG = {
     name: 'BNC HayMate',
+    brandLogoType: 'emoji', // 'emoji' | 'image'
+    brandLogoText: 'B',
+    brandLogoImage: '',
     tagline: '',
     loadingTitle: 'BNC HayMate',
     storefrontTitle: 'BNC HayMate',
@@ -808,6 +811,26 @@
         if (s.tagline) state.store.tagline = s.tagline;
         if (s.currency) state.store.currency = s.currency;
         if (s.timezone) state.store.timezone = s.timezone;
+
+        if (s.config && typeof s.config === 'object') {
+          if (s.config.store) {
+            state.store = { ...state.store, ...s.config.store };
+          }
+          if (s.config.color) {
+            state.color = s.config.color;
+            state.store.color = s.config.color;
+            try { localStorage.setItem('haypos_color', s.config.color); } catch(e){}
+          }
+          if (s.config.theme) {
+            state.theme = s.config.theme;
+            state.store.theme = s.config.theme;
+          }
+          if (Array.isArray(s.config.banners)) {
+            BANNERS = s.config.banners;
+          }
+        }
+        applyAppTheme(state.color, state.theme || 'light');
+        applyStickyNoteTheme();
       }
 
       if (ssRes?.data && ssRes.data[0]) {
@@ -825,14 +848,6 @@
           state.theme = ss.dark_mode ? 'dark' : 'light';
           state.store.theme = state.theme;
         }
-        if (ss.theme_config && typeof ss.theme_config === 'object') {
-          if (ss.theme_config.store) {
-            state.store = { ...state.store, ...ss.theme_config.store };
-          }
-          if (Array.isArray(ss.theme_config.banners)) {
-            BANNERS = ss.theme_config.banners;
-          }
-        }
         applyAppTheme(state.color, state.theme || 'light');
         applyStickyNoteTheme();
       }
@@ -841,14 +856,14 @@
         PRODUCTS = pRes.data.map(p => ({
           id: p.id,
           name: p.name,
-          cat: p.categories?.name || p.cat || 'Bakery',
+          cat: p.cat || 'Bakery',
           level: p.level || 1,
           price: Number(p.price || 0),
           stock: Number(p.stock !== undefined ? p.stock : 0),
           emoji: p.emoji || '',
-          image: p.image_url || '',
-          flavor: p.flavor || '',
-          status: (p.stock === 0 || p.status === 'out_of_stock') ? 'out' : (p.stock < 10 || p.status === 'low') ? 'low' : 'active'
+          image: p.image || p.image_url || '',
+          flavor: p.flavor || p.description || '',
+          status: (p.stock === 0 || p.is_active === false) ? 'out' : (p.stock < 10) ? 'low' : 'active'
         }));
         // Not calling persistProducts() — Supabase is the source of truth
       }
@@ -1284,8 +1299,9 @@
                 price: Number(p.price || 0),
                 stock: Number(p.stock !== undefined ? p.stock : 0),
                 emoji: p.emoji || '',
-                image: p.image_url || '',
-                status: (p.stock === 0 || p.status === 'out_of_stock') ? 'out' : (p.stock < 10) ? 'low' : 'active'
+                image: p.image || p.image_url || '',
+                flavor: p.flavor || p.description || '',
+                status: (p.stock === 0 || p.is_active === false) ? 'out' : (p.stock < 10) ? 'low' : 'active'
               });
               renderPage();
             }
@@ -1296,11 +1312,12 @@
               PRODUCTS[idx] = {
                 ...PRODUCTS[idx],
                 name: p.name || PRODUCTS[idx].name,
+                cat: p.cat || PRODUCTS[idx].cat,
                 price: p.price !== undefined ? Number(p.price) : PRODUCTS[idx].price,
                 stock: p.stock !== undefined ? Number(p.stock) : PRODUCTS[idx].stock,
-                status: p.status || PRODUCTS[idx].status,
+                status: (p.stock === 0 || p.is_active === false) ? 'out' : (p.stock < 10) ? 'low' : (p.status || PRODUCTS[idx].status),
                 emoji: p.emoji || PRODUCTS[idx].emoji,
-                image: p.image_url !== undefined ? (p.image_url || '') : PRODUCTS[idx].image
+                image: p.image !== undefined ? (p.image || '') : (p.image_url !== undefined ? (p.image_url || '') : PRODUCTS[idx].image)
               };
               renderPage();
             }
@@ -1888,6 +1905,20 @@
 
     const brandTitle = document.querySelector('.brand-title');
     if (brandTitle) brandTitle.textContent = state.store.name || 'BNC HayMate';
+
+    const brandMark = document.querySelector('.brand-mark');
+    if (brandMark) {
+      if (state.store.brandLogoType === 'image' && state.store.brandLogoImage) {
+        brandMark.style.background = 'transparent';
+        brandMark.style.boxShadow = 'none';
+        brandMark.innerHTML = `<img src="${escapeHTML(state.store.brandLogoImage)}" alt="Logo" onerror="this.parentElement.style.background='var(--primary)'; this.parentElement.textContent='B';" />`;
+      } else {
+        brandMark.style.background = 'var(--primary)';
+        brandMark.style.boxShadow = 'var(--shadow)';
+        const markText = state.store.brandLogoText || (state.store.name ? state.store.name.trim()[0] : 'B');
+        brandMark.textContent = markText;
+      }
+    }
 
     const sidebarStoreSub = $('#sidebarStoreSub');
     if (sidebarStoreSub) sidebarStoreSub.textContent = state.isAdmin ? 'Admin Dashboard' : (state.store.storefrontTitle || 'Customer Store');
@@ -3432,7 +3463,7 @@
           if (supabase) {
             const { error } = await supabase.from('products').update({
               stock: target.stock,
-              status: target.status === 'out_of_stock' ? 'out_of_stock' : 'active'
+              is_active: target.stock > 0
             }).eq('id', target.id);
             if (error) { toast('อัปเดตสต็อกไม่สำเร็จ: ' + error.message, 'error'); return; }
           }
@@ -3600,8 +3631,12 @@
             existing.status = status;
             if (supabase) {
               const { error } = await supabase.from('products').update({
-                name, price, stock, status, flavor,
-                image_url: image || null
+                name,
+                price,
+                stock,
+                cat,
+                image: image || null,
+                is_active: status !== 'out_of_stock'
               }).eq('id', existing.id);
               if (error) {
                 console.error('Product update error:', error);
@@ -3639,9 +3674,9 @@
                 name,
                 price,
                 stock,
-                status,
-                flavor,
-                image_url: image || null,
+                cat,
+                image: image || null,
+                is_active: status !== 'out_of_stock',
                 store_id: storeId
               }).select().single();
 
@@ -3655,12 +3690,12 @@
                 newProd = {
                   id: inserted.id,
                   name: inserted.name,
-                  cat: cat,
+                  cat: inserted.cat || cat,
                   price: Number(inserted.price || price),
                   stock: Number(inserted.stock !== undefined ? inserted.stock : stock),
-                  status: inserted.status || status,
-                  flavor: inserted.flavor || flavor,
-                  image: inserted.image_url || image
+                  status: (inserted.stock === 0 || inserted.is_active === false) ? 'out' : (inserted.stock < 10) ? 'low' : 'active',
+                  flavor: flavor,
+                  image: inserted.image || image
                 };
               }
             }
@@ -5045,6 +5080,8 @@
     `));
 
     // Working copies for dynamic fields
+    let currentBrandLogoType = state.store.brandLogoType || 'emoji';
+    let currentBrandLogoImage = state.store.brandLogoImage || '';
     let heroIconType = state.store.heroIconType || 'emoji';
     let heroImage = state.store.heroImage || '';
     let currentReceiptLogoType = state.store.receiptLogoType || 'emoji';
@@ -5058,11 +5095,45 @@
     const formWrap = el(`
       <div style="display:flex; flex-direction:column; gap:20px;">
         
-        <!-- SECTION 1: Customer Storefront & Loading Screen -->
+        <!-- SECTION 1: Sidebar Brand Logo & Storefront Header -->
         <div class="card">
-          <div class="card-title">Customer Storefront &amp; Loading Screen Header (หัวข้อหน้าร้าน &amp; หน้าดาวน์โหลด)</div>
-          <div class="card-sub">ปรับแต่งชื่อเมนูหน้าร้าน, คำบรรยายใต้ชื่อ และข้อความตัวอักษร Sunshiney ที่แสดงบนหน้าดาวน์โหลด</div>
-          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:12px;">
+          <div class="card-title">Sidebar Logo &amp; Storefront Header (สี่เหลี่ยมโลโก้ร้านมุมซ้ายบนแถบเมนู &amp; หัวข้อหน้าร้าน)</div>
+          <div class="card-sub">ปรับแต่งสี่เหลี่ยมโลโก้ร้านที่มุมซ้ายบนของแถบเมนู Sidebar (เลือกระหว่าง อัปโหลดรูปภาพ หรือ ตัวอักษร/อิโมจิ)</div>
+          
+          <!-- Brand Logo Box Customizer -->
+          <div style="background:var(--primary-50); padding:14px; border-radius:14px; border:1px solid var(--border); margin-top:12px; margin-bottom:14px;">
+            <div style="font-weight:700; font-size:13.5px; margin-bottom:8px; color:var(--text);">สี่เหลี่ยมโลโก้มุมซ้ายบนแถบ Sidebar (Brand Mark Logo)</div>
+            <div class="flex gap-2" style="margin-bottom:10px;">
+              <button type="button" class="btn btn-sm ${currentBrandLogoType !== 'image' ? 'btn-primary' : ''}" id="btnBrandLogoTypeEmoji" style="font-size:12px;">ตัวอักษร / อิโมจิ</button>
+              <button type="button" class="btn btn-sm ${currentBrandLogoType === 'image' ? 'btn-primary' : ''}" id="btnBrandLogoTypeImage" style="font-size:12px;">อัปโหลดรูปภาพ (Image)</button>
+            </div>
+
+            <!-- Image Upload Box -->
+            <div id="brandLogoImageWrap" style="display:${currentBrandLogoType === 'image' ? 'block' : 'none'};">
+              <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
+                <div style="width:48px; height:48px; border-radius:12px; overflow:hidden; border:1.5px dashed var(--border); background:var(--card); display:grid; place-items:center; flex:none;">
+                  <img id="brandLogoImgPreview" src="${escapeHTML(currentBrandLogoImage)}" style="width:100%; height:100%; object-fit:cover; display:${currentBrandLogoImage ? 'block' : 'none'};" onerror="this.style.display='none';" />
+                  <span id="brandLogoImgFallback" style="font-size:11px; display:${currentBrandLogoImage ? 'none' : 'block'}; color:var(--muted); font-weight:700;">LOGO</span>
+                </div>
+                <div style="flex:1;">
+                  <input type="file" id="fileBrandLogo" accept="image/*" style="display:none;" />
+                  <button type="button" class="btn btn-sm" id="btnUploadBrandLogo" style="font-size:11.5px; padding:5px 12px; font-weight:700;">อัปโหลดรูปภาพ 1:1</button>
+                  <button type="button" class="btn btn-sm btn-ghost" id="btnClearBrandLogo" style="font-size:11.5px; padding:5px 8px; color:var(--danger); display:${currentBrandLogoImage ? 'inline-block' : 'none'};">ลบรูปภาพ</button>
+                </div>
+              </div>
+              <input class="input" id="setBrandLogoImgUrl" value="${escapeHTML(currentBrandLogoImage)}" placeholder="หรือวาง URL รูปภาพโลโก้ เช่น https://..." style="font-size:12px;" />
+            </div>
+
+            <!-- Text / Emoji Input Box -->
+            <div id="brandLogoEmojiWrap" style="display:${currentBrandLogoType === 'image' ? 'none' : 'block'};">
+              <div class="field" style="margin:0;">
+                <label style="font-size:12px;">ตัวอักษรย่อ หรือ อิโมจิในกล่องสี่เหลี่ยม</label>
+                <input class="input" id="setBrandLogoText" value="${escapeHTML(state.store.brandLogoText || (state.store.name ? state.store.name.trim()[0] : 'B'))}" placeholder="เช่น B, V, 🧁, ☕" style="max-width:140px; text-align:center; font-weight:800; font-size:15px;" maxlength="4" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
             <div class="field">
               <label>ข้อความหน้าดาวน์โหลด (Loading Screen Title)</label>
               <input class="input" id="setLoadingTitle" value="${escapeHTML(state.store.loadingTitle || state.store.name || 'BNC HayMate')}" placeholder="เช่น BNC HayMate, ยินดีต้อนรับสู่ BNC HayMate" />
@@ -5756,7 +5827,78 @@
       });
     };
 
-    renderHighlightsSettingsList();
+    // Brand Logo Handlers
+    const btnBrandLogoTypeEmoji = formWrap.querySelector('#btnBrandLogoTypeEmoji');
+    const btnBrandLogoTypeImage = formWrap.querySelector('#btnBrandLogoTypeImage');
+    const brandLogoImageWrap = formWrap.querySelector('#brandLogoImageWrap');
+    const brandLogoEmojiWrap = formWrap.querySelector('#brandLogoEmojiWrap');
+    const fileBrandLogo = formWrap.querySelector('#fileBrandLogo');
+    const btnUploadBrandLogo = formWrap.querySelector('#btnUploadBrandLogo');
+    const btnClearBrandLogo = formWrap.querySelector('#btnClearBrandLogo');
+    const brandLogoImgPreview = formWrap.querySelector('#brandLogoImgPreview');
+    const brandLogoImgFallback = formWrap.querySelector('#brandLogoImgFallback');
+    const setBrandLogoImgUrl = formWrap.querySelector('#setBrandLogoImgUrl');
+
+    btnBrandLogoTypeEmoji?.addEventListener('click', () => {
+      currentBrandLogoType = 'emoji';
+      btnBrandLogoTypeEmoji.classList.add('btn-primary');
+      btnBrandLogoTypeImage.classList.remove('btn-primary');
+      if (brandLogoImageWrap) brandLogoImageWrap.style.display = 'none';
+      if (brandLogoEmojiWrap) brandLogoEmojiWrap.style.display = 'block';
+    });
+
+    btnBrandLogoTypeImage?.addEventListener('click', () => {
+      currentBrandLogoType = 'image';
+      btnBrandLogoTypeImage.classList.add('btn-primary');
+      btnBrandLogoTypeEmoji.classList.remove('btn-primary');
+      if (brandLogoImageWrap) brandLogoImageWrap.style.display = 'block';
+      if (brandLogoEmojiWrap) brandLogoEmojiWrap.style.display = 'none';
+    });
+
+    btnUploadBrandLogo?.addEventListener('click', () => fileBrandLogo?.click());
+    fileBrandLogo?.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        currentBrandLogoImage = evt.target.result;
+        if (brandLogoImgPreview) {
+          brandLogoImgPreview.src = currentBrandLogoImage;
+          brandLogoImgPreview.style.display = 'block';
+        }
+        if (brandLogoImgFallback) brandLogoImgFallback.style.display = 'none';
+        if (setBrandLogoImgUrl) setBrandLogoImgUrl.value = '(Uploaded Photo)';
+        if (btnClearBrandLogo) btnClearBrandLogo.style.display = 'inline-block';
+        toast('อัปโหลดรูปภาพโลโก้ร้านเรียบร้อย', 'success');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    setBrandLogoImgUrl?.addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      currentBrandLogoImage = val;
+      if (val && !val.startsWith('(Uploaded')) {
+        if (brandLogoImgPreview) {
+          brandLogoImgPreview.src = val;
+          brandLogoImgPreview.style.display = 'block';
+        }
+        if (brandLogoImgFallback) brandLogoImgFallback.style.display = 'none';
+        if (btnClearBrandLogo) btnClearBrandLogo.style.display = 'inline-block';
+      } else if (!val) {
+        if (brandLogoImgPreview) brandLogoImgPreview.style.display = 'none';
+        if (brandLogoImgFallback) brandLogoImgFallback.style.display = 'block';
+        if (btnClearBrandLogo) btnClearBrandLogo.style.display = 'none';
+      }
+    });
+
+    btnClearBrandLogo?.addEventListener('click', () => {
+      currentBrandLogoImage = '';
+      if (setBrandLogoImgUrl) setBrandLogoImgUrl.value = '';
+      if (brandLogoImgPreview) brandLogoImgPreview.style.display = 'none';
+      if (brandLogoImgFallback) brandLogoImgFallback.style.display = 'block';
+      if (btnClearBrandLogo) btnClearBrandLogo.style.display = 'none';
+      toast('ลบรูปภาพโลโก้แล้ว', 'info');
+    });
 
     // Hero Type Handlers
     const btnHeroEmoji = formWrap.querySelector('#btnHeroTypeEmoji');
@@ -6247,6 +6389,9 @@
 
     // Bind save actions
     const doSave = () => {
+      state.store.brandLogoType = currentBrandLogoType;
+      state.store.brandLogoImage = (currentBrandLogoImage && !currentBrandLogoImage.startsWith('(Uploaded')) ? currentBrandLogoImage : (formWrap.querySelector('#setBrandLogoImgUrl')?.value && formWrap.querySelector('#setBrandLogoImgUrl').value !== '(Uploaded Photo)' ? formWrap.querySelector('#setBrandLogoImgUrl').value : currentBrandLogoImage || '');
+      state.store.brandLogoText = formWrap.querySelector('#setBrandLogoText')?.value.trim() || 'B';
       state.store.loadingTitle = formWrap.querySelector('#setLoadingTitle')?.value.trim() || state.store.name || 'BNC HayMate';
       state.store.storefrontTitle = formWrap.querySelector('#setStorefrontTitle')?.value.trim() || 'BNC HayMate';
       state.store.storefrontSub = formWrap.querySelector('#setStorefrontSub')?.value.trim() || 'Handmade sweet things & bakery';
@@ -8227,43 +8372,35 @@
       }
     }
 
-    // 2. Persist to Supabase store_settings table
+    // 2. Persist to Supabase stores table (config JSONB column & base attributes)
     if (supabase) {
       try {
-        const basePayload = {
-          store_id: storeId,
-          primary_color: state.color || '#F8BFD4',
-          qr_image_url: state.store.qr_image_url || null,
-          bank_name: state.store.bank_name || null,
-          bank_account: state.store.bank_account || null,
-          account_holder: state.store.account_holder || null
+        const payloadConfig = {
+          color: state.color,
+          theme: state.theme || 'light',
+          store: state.store,
+          banners: BANNERS
         };
 
-        const extendedPayload = {
-          ...basePayload,
-          dark_mode: state.theme === 'dark',
-          theme_config: {
-            store: state.store,
-            banners: BANNERS
-          }
-        };
+        await supabase.from('stores').update({
+          name: state.store.name || 'Vicky Store',
+          config: payloadConfig
+        }).eq('id', storeId);
 
-        const { error: upsertErr } = await supabase.from('store_settings').upsert(extendedPayload, { onConflict: 'store_id' });
-        if (upsertErr) {
-          console.warn('Extended settings upsert notice, trying base settings:', upsertErr.message);
+        // Also try upserting to store_settings if table exists
+        try {
+          const basePayload = {
+            store_id: storeId,
+            primary_color: state.color || '#F8BFD4',
+            qr_image_url: state.store.qr_image_url || null,
+            bank_name: state.store.bank_name || null,
+            bank_account: state.store.bank_account || null,
+            account_holder: state.store.account_holder || null
+          };
           await supabase.from('store_settings').upsert(basePayload, { onConflict: 'store_id' });
-        }
-
-        if (state.store.name) {
-          await supabase.from('stores').update({
-            name: state.store.name,
-            tagline: state.store.tagline,
-            currency: state.store.currency,
-            timezone: state.store.timezone
-          }).eq('id', storeId);
-        }
+        } catch(e) {}
       } catch (dbErr) {
-        console.warn('Supabase store settings upsert notice:', dbErr);
+        console.warn('Supabase store config update notice:', dbErr);
       }
     }
   }
@@ -8482,19 +8619,35 @@
       .forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
 
     // Start Supabase data fetch and loading animation concurrently.
-    // renderPage() is called only after BOTH complete — ensuring the UI always
-    // shows fresh data from Supabase, never stale localStorage data.
+    // Use a strict 2.5-second timeout safeguard so in-app browsers (Messenger/LINE) never freeze on a blank screen.
     const dataPromise = (async () => {
-      await checkAuthSession();
-      await loadSupabaseData();
-      setupRealtimeSubscriptions();
-      setupRealtimePresence();
+      try {
+        await Promise.race([
+          (async () => {
+            await checkAuthSession();
+            await loadSupabaseData();
+          })(),
+          new Promise(r => setTimeout(r, 2500))
+        ]);
+      } catch (e) {
+        console.warn('Data load notice / timeout:', e);
+      }
+
+      // Non-blocking background realtime setup
+      setTimeout(() => {
+        try {
+          setupRealtimeSubscriptions();
+          setupRealtimePresence();
+        } catch(e){}
+      }, 100);
     })();
 
     // Wait for loading animation to complete
     await new Promise(resolve => runLoadingProgress(resolve));
-    // Also wait for Supabase data (if still in flight after animation)
-    await dataPromise;
+    // Also wait for Supabase data (safe with timeout)
+    try {
+      await dataPromise;
+    } catch(e) {}
 
     // If not logged in as Admin, ensure Customer Storefront is displayed
     if (!state.isAdmin) {

@@ -88,6 +88,11 @@ input, select, textarea { font-family: inherit; color: inherit; }
   color:#fff; display:grid; place-items:center;
   font-weight:800; font-size:18px;
   box-shadow: var(--shadow);
+  overflow: hidden;
+  flex: none;
+}
+.brand-mark img{
+  width:100%; height:100%; object-fit:cover; display:block; border-radius:inherit;
 }
 .brand-name{display:flex;flex-direction:column;line-height:1.1}
 .brand-title{font-weight:800; font-size:17px; letter-spacing:.2px}
