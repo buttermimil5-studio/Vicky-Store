@@ -1153,6 +1153,10 @@
           state.color = '#F8BFD4';
           state.theme = 'light';
           state.store = JSON.parse(JSON.stringify(DEFAULT_STORE_CONFIG));
+          state.recentOrderNotifs = [];
+          state.clearedNotifProductIds = new Set();
+          state.clearedOrderNotifIds = new Set();
+          state.lastOrderId = null;
           BANNERS = [
             { id: 1, title: '', sub: '', tag: '', image: '' },
             { id: 2, title: '', sub: '', tag: '', image: '' },
@@ -1164,12 +1168,16 @@
           const keysToClear = [
             'haypos_orders', 'haypos_customers', 'haypos_products', 'haypos_reviews',
             'haypos_promotions', 'haypos_store_settings', 'haypos_cart', 'haypos_banners',
-            'haypos_color', 'haypos_theme'
+            'haypos_color', 'haypos_theme', 'haypos_recent_order_notifs',
+            'haypos_cleared_order_notifs', 'haypos_cleared_stock_notifs',
+            'haypos_last_order_id'
           ];
           keysToClear.forEach(k => {
             try { localStorage.removeItem(k); } catch (e) {}
           });
 
+          saveNotifsState();
+          updateStockNotifications();
           applyAppTheme('#F8BFD4', 'light');
           applyStickyNoteTheme();
           toast('ระบบได้รับการรีเซ็ตข้อมูลใหม่ทั้งหมดแล้ว', 'info');
@@ -6579,7 +6587,9 @@
       const keysToClear = [
         'haypos_orders', 'haypos_customers', 'haypos_products', 'haypos_reviews',
         'haypos_promotions', 'haypos_store_settings', 'haypos_cart', 'haypos_banners',
-        'haypos_color', 'haypos_theme'
+        'haypos_color', 'haypos_theme', 'haypos_recent_order_notifs',
+        'haypos_cleared_order_notifs', 'haypos_cleared_stock_notifs',
+        'haypos_last_order_id'
       ];
       keysToClear.forEach(k => {
         try { localStorage.removeItem(k); } catch (e) {}
@@ -6592,6 +6602,7 @@
       PROMOTIONS = [];
       PRODUCTS = [];
       STOCK = [];
+      CATEGORIES = [];
       BANNERS = [
         { id: 1, title: '', sub: '', tag: '', image: '' },
         { id: 2, title: '', sub: '', tag: '', image: '' },
@@ -6604,8 +6615,14 @@
       state.correctPin = '123456';
       state.selected = {};
       state.cart = {};
-      if (state.clearedNotifProductIds) state.clearedNotifProductIds.clear();
-      if (state.clearedOrderNotifIds) state.clearedOrderNotifIds.clear();
+      state.recentOrderNotifs = [];
+      state.clearedNotifProductIds = new Set();
+      state.clearedOrderNotifIds = new Set();
+      state.lastOrderId = null;
+
+      // Save empty notification state and update badge
+      saveNotifsState();
+      updateStockNotifications();
 
       // Persist clean blank states
       persistOrders();
