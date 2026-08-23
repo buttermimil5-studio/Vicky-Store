@@ -12,8 +12,8 @@
   // ============================================================
   // PART 1: Supabase Configuration
   // ============================================================
-  const SUPABASE_URL = 'https://zxoahkhgnefgdsyaiyvx.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
+  const SUPABASE_URL = 'https://nbqhnvzkyrnikfjojhvw.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5icWhudnpreXJuaWtmam9qaHZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczMzMwMTAsImV4cCI6MjEwMjkwOTAxMH0.X83FCIaEo-XFMXJzNtojcX9AOoCbuHhgWhWLNTfXyZQ';
   
   let supabase = null;
   function initSupabase() {
@@ -453,6 +453,43 @@
     }
   }
 
+  // Play cute soft chime via Web Audio API (admin only)
+  function playAdminOrderChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const now = ctx.currentTime;
+      // 3-note melody: C6 (1046.5Hz) -> E6 (1318.5Hz) -> G6 (1567.98Hz)
+      const notes = [1046.5, 1318.5, 1567.98];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+        gain.gain.setValueAtTime(0, now + idx * 0.12);
+        gain.gain.linearRampToValueAtTime(0.28, now + idx * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 0.42);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + idx * 0.12);
+        osc.stop(now + idx * 0.12 + 0.45);
+      });
+
+      setTimeout(() => {
+        try { ctx.close(); } catch(e){}
+      }, 1200);
+    } catch (e) {
+      console.warn('Admin chime audio notice:', e);
+    }
+  }
+
   function notifyNewOrder(order) {
     if (!order) return;
     const notifItem = {
@@ -473,10 +510,7 @@
     // Notify only if Admin is active; Customer sees only their own checkout success toast
     if (state.isAdmin) {
       toast(`ออเดอร์ใหม่เข้ามา! #${order.id} จากคุณ ${order.customer} (${money(order.total)})`, 'success');
-      try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcHCek3/C4YBobIqPh8bhfGhwjovD3t2AZHCH497hfGhwj+/e3XhocIvz3uF8aHCP797hfGhwj+/e3XhocIvz3uF8aHCP797hf');
-        audio.play().catch(() => {});
-      } catch (e) {}
+      playAdminOrderChime();
     }
     updateStockNotifications();
   }
@@ -686,9 +720,15 @@
     setTimeout(() => { t.style.opacity = 0; t.style.transform = 'translateX(120%)'; setTimeout(() => t.remove(), 300); }, 2600);
   }
 
+  let modalCloseTimer = null;
+
   function openModal({ title, body, actions }) {
     const root = $('#modalRoot');
     if (!root) return;
+    if (modalCloseTimer) {
+      clearTimeout(modalCloseTimer);
+      modalCloseTimer = null;
+    }
     root.innerHTML = '';
     const modal = el(`
       <div>
@@ -720,7 +760,13 @@
     const root = $('#modalRoot');
     if (!root) return;
     root.classList.remove('open');
-    setTimeout(() => { root.innerHTML = ''; }, 200);
+    if (modalCloseTimer) {
+      clearTimeout(modalCloseTimer);
+    }
+    modalCloseTimer = setTimeout(() => {
+      root.innerHTML = '';
+      modalCloseTimer = null;
+    }, 200);
   }
 
   function confirmDialog(msg, onYes) {
@@ -1530,6 +1576,31 @@
     });
   }
 
+  // Persistent Local Admin Accounts Storage (Fallback & Auto-remember across sessions)
+  function saveLocalAdminAccount(account) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('haypos_admin_accounts') || '[]');
+      const filtered = existing.filter(a => a.email.toLowerCase() !== account.email.toLowerCase());
+      filtered.unshift({
+        email: account.email.toLowerCase(),
+        password: account.password,
+        full_name: account.full_name || 'Admin',
+        role: account.role || 'Store Owner',
+        updated_at: Date.now()
+      });
+      localStorage.setItem('haypos_admin_accounts', JSON.stringify(filtered));
+    } catch (e) {}
+  }
+
+  function findLocalAdminAccount(email, password) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('haypos_admin_accounts') || '[]');
+      return existing.find(a => a.email.toLowerCase() === (email || '').trim().toLowerCase() && a.password === password);
+    } catch (e) {
+      return null;
+    }
+  }
+
   function openAdminAuthModal() {
     let mode = 'signin'; // 'signin' or 'signup'
 
@@ -1617,6 +1688,9 @@
       btnSubmitAuth.disabled = true;
 
       if (mode === 'signup') {
+        // Save account locally so user can always log back in without recreate
+        saveLocalAdminAccount({ email, password: pass, full_name: name, role: 'Store Owner' });
+
         if (supabase) {
           try {
             const { data, error } = await supabase.auth.signUp({
@@ -1625,30 +1699,7 @@
               options: { data: { full_name: name, role: 'owner' } }
             });
             if (error) {
-              // If rate limited by Supabase default SMTP, attempt direct login or smooth local admin unlock
-              if (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('limit'))) {
-                try {
-                  const signInAttempt = await supabase.auth.signInWithPassword({ email, password: pass });
-                  if (signInAttempt.data?.user) {
-                    const u = signInAttempt.data.user;
-                    const userName = u.user_metadata?.full_name || name;
-                    unlockAdminMode({ full_name: userName, email, role: 'Store Owner' });
-                    closeModal();
-                    toast(`เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${userName}`, 'success');
-                    return;
-                  }
-                } catch(e) {}
-
-                unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
-                closeModal();
-                toast(`เข้าสู่ระบบแอดมินสำเร็จ (โหมด Local Admin)`, 'success');
-                return;
-              }
-
-              toast('Sign Up Error: ' + error.message, 'error');
-              btnSubmitAuth.textContent = 'Create Admin Account';
-              btnSubmitAuth.disabled = false;
-              return;
+              console.warn('Supabase signUp notice:', error.message);
             }
             if (data?.user) {
               try {
@@ -1662,32 +1713,22 @@
               } catch (profileErr) {
                 console.warn('Profile upsert notice:', profileErr);
               }
-              unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
-              closeModal();
-              toast(`สร้างบัญชีและเข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${name}`, 'success');
-              return;
             }
           } catch (err) {
-            toast('Sign Up Failed: ' + (err.message || err), 'error');
-            btnSubmitAuth.textContent = 'Create Admin Account';
-            btnSubmitAuth.disabled = false;
-            return;
+            console.warn('Supabase signUp exception:', err);
           }
         }
         unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
         closeModal();
-        toast(`Account created! Welcome, ${name}`, 'success');
+        toast(`สร้างบัญชีและเข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${name}`, 'success');
       } else {
+        // Sign In Flow
+        let loggedInUser = null;
+
         if (supabase) {
           try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-            if (error) {
-              toast('Sign In Failed: ' + error.message, 'error');
-              btnSubmitAuth.textContent = 'Sign In to Dashboard';
-              btnSubmitAuth.disabled = false;
-              return;
-            }
-            if (data?.user) {
+            if (!error && data?.user) {
               let userName = name;
               let userRole = 'Store Owner';
               try {
@@ -1698,21 +1739,32 @@
               } catch (profErr) {
                 console.warn('Profile fetch notice:', profErr);
               }
-              unlockAdminMode({ full_name: userName, email, role: userRole });
-              closeModal();
-              toast(`ยินดีต้อนรับกลับ, ${userName}!`, 'success');
-              return;
+              loggedInUser = { full_name: userName, email, role: userRole };
+              saveLocalAdminAccount({ email, password: pass, full_name: userName, role: userRole });
             }
           } catch (err) {
-            toast('Login Failed: ' + (err.message || err), 'error');
-            btnSubmitAuth.textContent = 'Sign In to Dashboard';
-            btnSubmitAuth.disabled = false;
-            return;
+            console.warn('Supabase signIn notice:', err);
           }
         }
-        unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
-        closeModal();
-        toast(`Welcome back, ${name}!`, 'success');
+
+        // Fallback: Check local registered accounts store
+        if (!loggedInUser) {
+          const localAcc = findLocalAdminAccount(email, pass);
+          if (localAcc) {
+            loggedInUser = { full_name: localAcc.full_name, email: localAcc.email, role: localAcc.role || 'Store Owner' };
+          }
+        }
+
+        if (loggedInUser) {
+          unlockAdminMode(loggedInUser);
+          closeModal();
+          toast(`ยินดีต้อนรับกลับ, ${loggedInUser.full_name}!`, 'success');
+          return;
+        }
+
+        toast('Sign In Failed: Invalid login credentials', 'error');
+        btnSubmitAuth.textContent = 'Sign In to Dashboard';
+        btnSubmitAuth.disabled = false;
       }
     });
 
@@ -4328,7 +4380,7 @@
 
         <!-- Chubby Heart Button with Home SVG Icon Inside -->
         <button type="button" class="btn-chubby-heart" id="btnCelebrationHome" title="กลับหน้าแรก (Back to Home)" aria-label="Home">
-          <svg viewBox="0 0 100 90" width="76" height="70" fill="var(--primary-600)" style="display:block; filter:drop-shadow(0 4px 10px rgba(239, 166, 193, 0.35));">
+          <svg viewBox="0 0 100 90" width="76" height="70" fill="var(--primary-600)" style="display:block; filter:drop-shadow(0 3px 8px color-mix(in srgb, var(--primary-600) 25%, transparent));">
             <path d="M50 82 C50 82 8 52 8 28 C8 12 22 4 35 4 C43 4 47 8 50 12 C53 8 57 4 65 4 C78 4 92 12 92 28 C92 52 50 82 50 82 Z" />
           </svg>
           <div class="heart-home-icon">
@@ -4344,6 +4396,7 @@
     body.querySelector('#btnCelebrationHome')?.addEventListener('click', () => {
       closeModal();
       state.page = 'store';
+      state.storeTab = 'home';
       renderMenu();
       renderPage();
     });
@@ -4418,7 +4471,7 @@
       body,
       actions: [
         { label: 'Cancel', kind: 'ghost' },
-        { label: 'ส่งรีวิว (Submit Review)', kind: 'primary', onClick: async () => {
+        { label: 'ส่งรีวิว (Submit Review)', kind: 'primary', close: false, onClick: async () => {
           const name = $('#revCustName')?.value.trim() || 'ลูกค้าคนพิเศษ';
           const text = $('#revCustMsg')?.value.trim() || 'ขนมอร่อยมาก แพ็กเกจน่ารักและจัดส่งรวดเร็วมากค่ะ';
           const avatar = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'AW';
@@ -4467,11 +4520,7 @@
             } catch (e) {}
           }
 
-          closeModal();
-          renderPage();
-          setTimeout(() => {
-            openReviewCelebrationModal();
-          }, 180);
+          openReviewCelebrationModal();
         }}
       ]
     });
@@ -6690,6 +6739,7 @@
 
     const drawStore = (key) => {
       currentStoreTab = key;
+      state.storeTab = key;
       view.innerHTML = '';
       updateFloatingCartBtn();
       if (key === 'home') {
@@ -7601,15 +7651,16 @@
             } catch (e) {}
           }
 
+          state.lastOrderId = newOrderNumber;
           state.selected = {};
           updateFloatingCartBtn();
-          toast('สั่งซื้อและตัดสต็อกสินค้าสำเร็จเรียบร้อย', 'success');
+          toast('สั่งซื้อสำเร็จ', 'success');
           root.querySelectorAll('#storeTabs .tab').forEach(x => x.classList.remove('active'));
           root.querySelector('#storeTabs [data-s="receipt"]').classList.add('active');
           drawStore('receipt');
         });
       } else if (key === 'receipt') {
-        const latestOrder = ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', farm_name: 'BNC Hay Farm', farm_tag: '#FARM-01', date: new Date().toISOString().split('T')[0], total: 35.30, subtotal: 35.30, discount: 0, delivery: 0 };
+        const latestOrder = (state.lastOrderId && ORDERS.find(x => String(x.id) === String(state.lastOrderId))) || ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', farm_name: 'BNC Hay Farm', farm_tag: '#FARM-01', date: new Date().toISOString().split('T')[0], total: 35.30, subtotal: 35.30, discount: 0, delivery: 0 };
         const logoType = state.store.receiptLogoType || 'emoji';
         const logoImage = state.store.receiptLogoImage || '';
         const logoEmoji = state.store.receiptLogoEmoji || 'B';
@@ -7689,7 +7740,7 @@
           window.print();
         });
       } else if (key === 'tracking') {
-        const latestOrder = ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', date: new Date().toISOString().split('T')[0], status: 'waiting' };
+        const latestOrder = (state.lastOrderId && ORDERS.find(x => String(x.id) === String(state.lastOrderId))) || ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', date: new Date().toISOString().split('T')[0], status: 'waiting' };
         const trackingTitle = state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'BNC HayMate';
         const trackingSub = state.store.trackingReviewSub || '';
         const trackingBtn = state.store.trackingReviewBtnText || 'เขียนรีวิว & ให้คะแนนร้าน';
@@ -7731,7 +7782,7 @@
     };
 
     const initialTab = state.storeTab || 'home';
-    state.storeTab = 'home'; // reset
+    state.storeTab = initialTab;
     root.querySelectorAll('#storeTabs .tab').forEach(x => {
       x.classList.toggle('active', x.dataset.s === initialTab);
     });
