@@ -5096,17 +5096,7 @@
           <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:12px;" id="highlightsSettingsList"></div>
         </div>
 
-        <!-- SECTION 4: Popular Picks Section -->
-        <div class="card">
-          <div class="card-title">Popular Picks Section (หมวดสินค้าขายดี)</div>
-          <div class="card-sub">แก้ไขชื่อหัวข้อและคำอธิบายส่วนแสดงสินค้าขายดีบนหน้า Home</div>
-          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:14px; margin-top:12px;">
-            <div class="field"><label>หัวข้อส่วนสินค้า (Section Title)</label><input class="input" id="setPopularTitle" value="${escapeHTML(state.store.popularTitle || 'Popular Picks')}" /></div>
-            <div class="field"><label>คำบรรยาย (Section Subtitle)</label><input class="input" id="setPopularSub" value="${escapeHTML(state.store.popularSub || 'Best sellers this week')}" /></div>
-          </div>
-        </div>
-
-        <!-- SECTION 5: Home Carousel Dynamic Slides Manager -->
+        <!-- SECTION 4: Home Carousel Dynamic Slides Manager -->
         <div class="card">
           <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
             <div>
@@ -6240,8 +6230,8 @@
         sub: h.sub || ''
       }));
 
-      state.store.popularTitle = formWrap.querySelector('#setPopularTitle')?.value.trim() || 'Popular Picks';
-      state.store.popularSub = formWrap.querySelector('#setPopularSub')?.value.trim() || 'Best sellers this week';
+      state.store.popularTitle = formWrap.querySelector('#setPopularTitle')?.value.trim() || state.store.popularTitle || 'Popular Picks';
+      state.store.popularSub = formWrap.querySelector('#setPopularSub')?.value.trim() || state.store.popularSub || 'Best sellers this week';
 
       // Receipt Settings Save
       state.store.receiptLogoType = currentReceiptLogoType;
