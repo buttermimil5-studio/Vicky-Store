@@ -1147,8 +1147,31 @@
           PROMOTIONS = [];
           PRODUCTS = [];
           STOCK = [];
+          CATEGORIES = [];
           state.selected = {};
           state.cart = {};
+          state.color = '#F8BFD4';
+          state.theme = 'light';
+          state.store = JSON.parse(JSON.stringify(DEFAULT_STORE_CONFIG));
+          BANNERS = [
+            { id: 1, title: '', sub: '', tag: '', image: '' },
+            { id: 2, title: '', sub: '', tag: '', image: '' },
+            { id: 3, title: '', sub: '', tag: '', image: '' },
+            { id: 4, title: '', sub: '', tag: '', image: '' },
+            { id: 5, title: '', sub: '', tag: '', image: '' }
+          ];
+
+          const keysToClear = [
+            'haypos_orders', 'haypos_customers', 'haypos_products', 'haypos_reviews',
+            'haypos_promotions', 'haypos_store_settings', 'haypos_cart', 'haypos_banners',
+            'haypos_color', 'haypos_theme'
+          ];
+          keysToClear.forEach(k => {
+            try { localStorage.removeItem(k); } catch (e) {}
+          });
+
+          applyAppTheme('#F8BFD4', 'light');
+          applyStickyNoteTheme();
           toast('ระบบได้รับการรีเซ็ตข้อมูลใหม่ทั้งหมดแล้ว', 'info');
           renderMenu();
           renderPage();
@@ -6507,18 +6530,35 @@
         return;
       }
 
-      // 1. Wipe Supabase tables so other devices and next reloads see empty data
+      // 1. Wipe Supabase tables in strict dependency order (leaf tables first) so foreign key constraints are not violated
       if (supabase) {
         try {
-          await Promise.allSettled([
-            supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabase.from('reviews').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabase.from('promotions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabase.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabase.from('stock_movements').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          ]);
+          // 1. Order Items (leaf table referencing orders & products)
+          await supabase.from('order_items').delete().not('id', 'is', null);
+          // 2. Stock Movements (referencing products & stores)
+          await supabase.from('stock_movements').delete().not('id', 'is', null);
+          // 3. Orders (referencing stores & customers)
+          await supabase.from('orders').delete().not('id', 'is', null);
+          // 4. Reviews (referencing stores & customers)
+          await supabase.from('reviews').delete().not('id', 'is', null);
+          // 5. Promotions
+          await supabase.from('promotions').delete().not('id', 'is', null);
+          // 6. Products (referencing stores & categories)
+          await supabase.from('products').delete().not('id', 'is', null);
+          // 7. Customers (referencing stores)
+          await supabase.from('customers').delete().not('id', 'is', null);
+          // 8. Categories
+          await supabase.from('categories').delete().not('id', 'is', null);
+          // 9. Reset store_settings
+          await supabase.from('store_settings').update({
+            primary_color: '#F8BFD4',
+            dark_mode: false,
+            theme_config: null,
+            qr_image_url: null,
+            bank_name: null,
+            bank_account: null,
+            account_holder: null
+          }).not('id', 'is', null);
         } catch (dbErr) {
           console.warn('Supabase reset warning:', dbErr);
         }
