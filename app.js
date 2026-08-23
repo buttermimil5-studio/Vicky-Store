@@ -12,8 +12,8 @@
   // ============================================================
   // PART 1: Supabase Configuration
   // ============================================================
-  const SUPABASE_URL = 'https://nbqhnvzkyrnikfjojhvw.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5icWhudnpreXJuaWtmam9qaHZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczMzMwMTAsImV4cCI6MjEwMjkwOTAxMH0.X83FCIaEo-XFMXJzNtojcX9AOoCbuHhgWhWLNTfXyZQ';
+  const SUPABASE_URL = 'https://zxoahkhgnefgdsyaiyvx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
   
   let supabase = null;
   function initSupabase() {
