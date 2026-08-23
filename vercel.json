@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "cleanUrls": true,
   "headers": [
     {
@@ -10,12 +9,6 @@
           "value": "public, max-age=0, must-revalidate"
         }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ]
 }
