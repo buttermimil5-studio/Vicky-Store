@@ -1724,8 +1724,12 @@
       btnSubmitAuth.disabled = true;
 
       if (mode === 'signup') {
-        // Save account locally so user can always log back in without recreate
-        saveLocalAdminAccount({ email, password: pass, full_name: name, role: 'Store Owner' });
+        if (pass.length < 6) {
+          toast('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร', 'warning');
+          btnSubmitAuth.textContent = 'Create Admin Account';
+          btnSubmitAuth.disabled = false;
+          return;
+        }
 
         if (supabase) {
           try {
@@ -1734,29 +1738,36 @@
               password: pass,
               options: { data: { full_name: name, role: 'owner' } }
             });
+
             if (error) {
-              console.warn('Supabase signUp notice:', error.message);
+              console.warn('Supabase signUp error:', error.message);
+              toast(`สร้างบัญชีใน Supabase ไม่สำเร็จ: ${error.message}`, 'error');
+              btnSubmitAuth.textContent = 'Create Admin Account';
+              btnSubmitAuth.disabled = false;
+              return;
             }
+
             if (data?.user) {
-              try {
-                await supabase.from('profiles').upsert({
-                  user_id: data.user.id,
-                  full_name: name,
-                  email,
-                  role: 'owner',
-                  status: 'active'
-                });
-              } catch (profileErr) {
-                console.warn('Profile upsert notice:', profileErr);
-              }
+              saveLocalAdminAccount({ email, password: pass, full_name: name, role: 'Store Owner' });
+              unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
+              closeModal();
+              toast(`สร้างบัญชีใน Supabase และเข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${name}`, 'success');
+              return;
             }
           } catch (err) {
             console.warn('Supabase signUp exception:', err);
+            toast(`เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase: ${err.message}`, 'error');
+            btnSubmitAuth.textContent = 'Create Admin Account';
+            btnSubmitAuth.disabled = false;
+            return;
           }
         }
+
+        // Offline mode fallback if supabase is not initialized
+        saveLocalAdminAccount({ email, password: pass, full_name: name, role: 'Store Owner' });
         unlockAdminMode({ full_name: name, email, role: 'Store Owner' });
         closeModal();
-        toast(`สร้างบัญชีและเข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${name}`, 'success');
+        toast(`สร้างบัญชีและเข้าสู่ระบบสำเร็จ (โหมด Local)! ยินดีต้อนรับคุณ ${name}`, 'success');
       } else {
         // Sign In Flow
         let loggedInUser = null;
@@ -6549,14 +6560,16 @@
           await supabase.from('orders').delete().not('id', 'is', null);
           // 4. Reviews (referencing stores & customers)
           await supabase.from('reviews').delete().not('id', 'is', null);
-          // 5. Promotions
+          // 5. Promotions / Coupons
           await supabase.from('promotions').delete().not('id', 'is', null);
+          await supabase.from('coupons').delete().not('id', 'is', null);
           // 6. Products (referencing stores & categories)
           await supabase.from('products').delete().not('id', 'is', null);
           // 7. Customers (referencing stores)
           await supabase.from('customers').delete().not('id', 'is', null);
-          // 8. Categories
+          // 8. Categories & Banners
           await supabase.from('categories').delete().not('id', 'is', null);
+          await supabase.from('store_banners').delete().not('id', 'is', null);
           // 9. Reset store_settings
           await supabase.from('store_settings').update({
             primary_color: '#F8BFD4',
