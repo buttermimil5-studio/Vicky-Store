@@ -12,8 +12,8 @@
   // ============================================================
   // PART 1: Supabase Configuration
   // ============================================================
-  const SUPABASE_URL = 'https://zxoahkhgnefgdsyaiyvx.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
+  const SUPABASE_URL = 'https://hlozqirvgnjzsrrtpzrh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsb3pxaXJ2Z25qenNycnRwenJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE1NjIsImV4cCI6MjEwMzA3NzU2Mn0.ZvW6oSDno7JdXD5a1pZw4-OYq1hZPkJuDa2_POuRWNA';
   
   let supabase = null;
   function initSupabase() {
@@ -8031,26 +8031,6 @@
       view.innerHTML = '';
       updateFloatingCartBtn();
       if (key === 'home') {
-        // 0. Top Marquee Announcement Bar on Home
-        const annIcon = state.store.announcementIcon || '📢';
-        const annImg = state.store.announcementImage || '';
-        const annText = state.store.announcementText || `ยินดีต้อนรับสู่ ${state.store.name || 'Lilith store'} ไอเทมเฮย์เดย์ครบวงจร ส่งไว ตอบแชท 24 ชม.`;
-        const annIconHtml = annImg
-          ? `<img src="${escapeHTML(annImg)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" /><span style="display:none;">${escapeHTML(annIcon)}</span>`
-          : `<span>${escapeHTML(annIcon)}</span>`;
-        const annEl = el(`
-          <div class="home-marquee-banner">
-            <div class="ticker-icon-badge">${annIconHtml}</div>
-            <div class="ticker-track-smooth">
-              <div class="ticker-marquee-inner">
-                <span class="ticker-marquee-text">${escapeHTML(annText)}</span>
-                <span class="ticker-marquee-text">${escapeHTML(annText)}</span>
-              </div>
-            </div>
-          </div>
-        `);
-        view.appendChild(annEl);
-
         // 1. Mascot & Contact Channels Section (Home Page Top - Requirement 1)
         const mascotImg = state.store.homeMascotImage || '';
         const mascotEmoji = state.store.homeMascotEmoji || '🌸';
