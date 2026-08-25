@@ -12,8 +12,8 @@
   // ============================================================
   // PART 1: Supabase Configuration
   // ============================================================
-  const SUPABASE_URL = 'https://zxoahkhgnefgdsyaiyvx.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
+  const SUPABASE_URL = 'https://hlozqirvgnjzsrrtpzrh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsb3pxaXJ2Z25qenNycnRwenJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE1NjIsImV4cCI6MjEwMzA3NzU2Mn0.ZvW6oSDno7JdXD5a1pZw4-OYq1hZPkJuDa2_POuRWNA';
   
   let supabase = null;
   function initSupabase() {
@@ -288,7 +288,7 @@
     trackingReviewTitle: 'BNC HayMate',
     trackingReviewSub: '',
     trackingReviewBtnText: 'เขียนรีวิว & ให้คะแนนร้าน',
-    trackingContactLabel: '💬 ทักแชทแจ้งออเดอร์ (Line OA)',
+    trackingContactLabel: 'ทักแชทแจ้งออเดอร์ (Line OA)',
     trackingContactUrl: 'https://line.me/R/ti/p/@bnchaymate',
     // Marquee Announcement Ticker Settings
     announcementIcon: '📢',
@@ -486,6 +486,7 @@
   }
   const money = (n) => getCurrencySymbol() + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const escapeHTML = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const cleanEmoji = (s) => String(s || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]|💬|📋/gu, '').trim();
 
   function getProductPriceRule(product) {
     if (!product) return null;
@@ -2435,13 +2436,36 @@
 
     root.querySelector('#dashReports').addEventListener('click', () => { state.page = 'reports'; renderMenu(); renderPage(); });
 
-    const totalRev = ORDERS.reduce((s, o) => s + (o.status !== 'cancelled' ? Number(o.total || 0) : 0), 0);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayOrders = ORDERS.filter(o => o.date === todayStr && o.status !== 'cancelled');
+    const todayRev = todayOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
     const aggCount = (typeof getAggregatedCustomers === 'function') ? getAggregatedCustomers().length : CUSTOMERS.length;
+
+    // Calculate real Best Seller from actual order items
+    const itemTotals = {};
+    ORDERS.forEach(o => {
+      if (o.status === 'cancelled') return;
+      if (Array.isArray(o.items_data)) {
+        o.items_data.forEach(it => {
+          const name = it.name || it.product_name;
+          if (name) itemTotals[name] = (itemTotals[name] || 0) + Number(it.qty || 1);
+        });
+      }
+    });
+    let bestSellerName = '-';
+    let bestSellerQty = 0;
+    for (const [name, qty] of Object.entries(itemTotals)) {
+      if (qty > bestSellerQty) {
+        bestSellerQty = qty;
+        bestSellerName = name;
+      }
+    }
+
     const stats = [
-      { label: "Today's Sales", value: money(totalRev), delta: ORDERS.length > 0 ? '+12.4%' : '0%', icon: ICONS.revenue },
-      { label: 'Total Orders', value: String(ORDERS.length), delta: ORDERS.length > 0 ? '+5.1%' : '0 orders', icon: ICONS.orders },
+      { label: "Today's Sales", value: money(todayRev), delta: todayOrders.length > 0 ? `${todayOrders.length} orders today` : '0 orders today', icon: ICONS.revenue },
+      { label: 'Total Orders', value: String(ORDERS.length), delta: ORDERS.length > 0 ? `+${ORDERS.length} total` : '0 orders', icon: ICONS.orders },
       { label: 'Customers', value: String(aggCount), delta: aggCount > 0 ? `+${aggCount} total` : '0 registered', icon: ICONS.customers },
-      { label: 'Best Seller', value: ORDERS.length > 0 ? 'Rose Latte' : '-', delta: ORDERS.length > 0 ? '68 sold today' : 'No sales yet', icon: ICONS.orders },
+      { label: 'Best Seller', value: escapeHTML(bestSellerName), delta: bestSellerQty > 0 ? `ขายได้ ${bestSellerQty} ชิ้น` : 'ยังไม่มียอดขาย', icon: ICONS.orders },
     ];
     const statsGrid = el(`<div class="grid stats"></div>`);
     stats.forEach(s => statsGrid.appendChild(el(`
@@ -2711,23 +2735,56 @@
 
     const colors = getThemeChartColors();
 
-    const hasOrders = ORDERS.length > 0;
+    const now = new Date();
+
+    // 1. Week Data: Last 7 days ending today
+    const weekLabels = [];
+    const weekSales = [];
+    const weekOrders = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayNum = d.getDate();
+      weekLabels.push(`${dayName} ${dayNum}`);
+      const dayList = ORDERS.filter(o => o.date === dateStr && o.status !== 'cancelled');
+      weekSales.push(dayList.reduce((s, o) => s + Number(o.total || 0), 0));
+      weekOrders.push(dayList.length);
+    }
+
+    // 2. Month Data: 4 Weeks of current month
+    const currentYearMonth = now.toISOString().slice(0, 7);
+    const monthLabels = ['W1 (1-7)', 'W2 (8-14)', 'W3 (15-21)', 'W4 (22+)'];
+    const monthSales = [0, 0, 0, 0];
+    const monthOrders = [0, 0, 0, 0];
+    ORDERS.forEach(o => {
+      if (o.status === 'cancelled' || !o.date || !o.date.startsWith(currentYearMonth)) return;
+      const day = parseInt(o.date.split('-')[2], 10) || 1;
+      const wIdx = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+      monthSales[wIdx] += Number(o.total || 0);
+      monthOrders[wIdx] += 1;
+    });
+
+    // 3. Year Data: 4 Quarters of current year
+    const currentYear = now.getFullYear();
+    const yearLabels = ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'];
+    const yearSales = [0, 0, 0, 0];
+    const yearOrders = [0, 0, 0, 0];
+    ORDERS.forEach(o => {
+      if (o.status === 'cancelled' || !o.date) return;
+      const parts = o.date.split('-');
+      if (parseInt(parts[0], 10) !== currentYear) return;
+      const mo = parseInt(parts[1], 10) || 1;
+      const qIdx = Math.min(3, Math.floor((mo - 1) / 3));
+      yearSales[qIdx] += Number(o.total || 0);
+      yearOrders[qIdx] += 1;
+    });
+
     const dataMap = {
-      Week: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        sales: hasOrders ? [420, 560, 640, 590, 780, 920, 1020] : [0, 0, 0, 0, 0, 0, 0],
-        orders: hasOrders ? [12, 15, 18, 16, 21, 26, 30] : [0, 0, 0, 0, 0, 0, 0]
-      },
-      Month: {
-        labels: ['W1', 'W2', 'W3', 'W4'],
-        sales: hasOrders ? [2800, 3400, 3900, 4500] : [0, 0, 0, 0],
-        orders: hasOrders ? [85, 105, 120, 142] : [0, 0, 0, 0]
-      },
-      Year: {
-        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
-        sales: hasOrders ? [11200, 14500, 16800, 19400] : [0, 0, 0, 0],
-        orders: hasOrders ? [340, 420, 490, 580] : [0, 0, 0, 0]
-      }
+      Week: { labels: weekLabels, sales: weekSales, orders: weekOrders },
+      Month: { labels: monthLabels, sales: monthSales, orders: monthOrders },
+      Year: { labels: yearLabels, sales: yearSales, orders: yearOrders }
     };
     const cur = dataMap[currentSalesPeriod] || dataMap.Week;
 
@@ -2798,33 +2855,103 @@
 
     root.querySelector('#filterRefreshBtn').addEventListener('click', () => { loadSupabaseData(); toast('Orders refreshed', 'success'); });
 
+    const selectedStatuses = new Set();
+    const allStatusList = ['waiting', 'verify', 'preparing', 'completed', 'cancelled'];
+    const statusLabels = {
+      waiting: 'Waiting Payment',
+      verify: 'Payment Verification',
+      preparing: 'Preparing Order',
+      completed: 'Completed',
+      cancelled: 'Cancelled'
+    };
+
     const filterBar = el(`
       <div class="filter-bar">
         <div class="search-wrap" style="flex:1; max-width:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
-          <input id="orderSearch" placeholder="Search by order ID or customer..." value="${escapeHTML(state.orderSearch)}"/>
+          <input id="orderSearch" placeholder="Search by order ID or customer..." value="${escapeHTML(state.orderSearch || '')}"/>
         </div>
-        <select class="select" id="orderStatus">
-          <option value="all">All statuses</option>
-          <option value="waiting">Waiting Payment</option>
-          <option value="verify">Payment Verification</option>
-          <option value="preparing">Preparing Order</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        
+        <!-- White-Pink Multi-Dropdown for Order Statuses -->
+        <div class="multi-dropdown-wrap" id="adminOrderStatusWrap">
+          <div class="multi-dropdown-trigger" id="adminOrderStatusTrigger">
+            <span id="adminOrderStatusLabel">All statuses</span>
+            <span class="arrow-icon">▼</span>
+          </div>
+          <div class="multi-dropdown-menu align-right" id="adminOrderStatusMenu">
+            <div class="multi-dropdown-item" data-status="__ALL__">
+              <span class="circle-checkbox checked" id="chkAdminStatusAll">✓</span>
+              <span>เลือกทั้งหมด (All statuses)</span>
+            </div>
+            ${allStatusList.map(sKey => `
+              <div class="multi-dropdown-item" data-status="${sKey}">
+                <span class="circle-checkbox checked" data-admin-status-chk="${sKey}">✓</span>
+                <span>${escapeHTML(statusLabels[sKey] || sKey)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
       </div>
     `);
     root.appendChild(filterBar);
-    filterBar.querySelector('#orderStatus').value = state.orderFilter;
+
+    const statusTrigger = filterBar.querySelector('#adminOrderStatusTrigger');
+    const statusMenu = filterBar.querySelector('#adminOrderStatusMenu');
+    const statusLabel = filterBar.querySelector('#adminOrderStatusLabel');
+    const chkStatusAll = filterBar.querySelector('#chkAdminStatusAll');
+
+    statusTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      statusMenu.classList.toggle('show');
+      statusTrigger.classList.toggle('active');
+    });
+
+    const closeStatusDropdown = () => {
+      statusMenu.classList.remove('show');
+      statusTrigger.classList.remove('active');
+    };
+    document.addEventListener('click', closeStatusDropdown);
+    statusMenu.addEventListener('click', (e) => e.stopPropagation());
+
+    statusMenu.querySelectorAll('.multi-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const st = item.dataset.status;
+        if (st === '__ALL__') {
+          selectedStatuses.clear();
+          statusMenu.querySelectorAll('[data-admin-status-chk]').forEach(c => c.classList.add('checked'));
+          chkStatusAll.classList.add('checked');
+          statusLabel.textContent = 'All statuses';
+        } else {
+          if (selectedStatuses.has(st)) {
+            selectedStatuses.delete(st);
+            item.querySelector('.circle-checkbox')?.classList.remove('checked');
+          } else {
+            selectedStatuses.add(st);
+            item.querySelector('.circle-checkbox')?.classList.add('checked');
+          }
+          const allChecked = selectedStatuses.size === 0 || selectedStatuses.size === allStatusList.length;
+          chkStatusAll.classList.toggle('checked', allChecked);
+          if (selectedStatuses.size === 0) {
+            statusLabel.textContent = 'All statuses';
+          } else if (selectedStatuses.size === 1) {
+            statusLabel.textContent = statusLabels[Array.from(selectedStatuses)[0]] || Array.from(selectedStatuses)[0];
+          } else {
+            statusLabel.textContent = `สถานะ (${selectedStatuses.size})`;
+          }
+        }
+        renderList();
+      });
+    });
 
     const listCard = el(`<div class="card" style="padding:0"><div class="table-wrap"></div><div class="pagination" style="padding: 12px 16px"></div></div>`);
     root.appendChild(listCard);
 
     function renderList() {
+      const q = (filterBar.querySelector('#orderSearch')?.value || '').toLowerCase().trim();
       const filtered = ORDERS.filter(o => {
-        const matches = (o.id + ' ' + o.customer).toLowerCase().includes(state.orderSearch.toLowerCase());
-        const s = state.orderFilter;
-        return matches && (s === 'all' || o.status === s);
+        const matchesQuery = !q || (o.id + ' ' + o.customer + ' ' + (o.farm_name || '') + ' ' + (o.farm_tag || '')).toLowerCase().includes(q);
+        const matchesStatus = selectedStatuses.size === 0 || selectedStatuses.has(o.status);
+        return matchesQuery && matchesStatus;
       });
       const table = el(`
         <table class="data">
@@ -2903,7 +3030,6 @@
     renderList();
 
     filterBar.querySelector('#orderSearch').addEventListener('input', (e) => { state.orderSearch = e.target.value; renderList(); });
-    filterBar.querySelector('#orderStatus').addEventListener('change', (e) => { state.orderFilter = e.target.value; renderList(); });
   };
 
   function openDeleteOrderModal(order, onSuccess) {
@@ -3434,19 +3560,86 @@
     `));
     root.querySelector('#addProduct').addEventListener('click', () => openAddProductModal());
 
+    const selectedAdminCats = new Set();
+
     const filter = el(`
       <div class="filter-bar">
         <div class="search-wrap" style="flex:1; max-width:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
           <input placeholder="Search products..." id="prodSearch"/>
         </div>
-        <select class="select" id="prodCat">
-          <option value="">All categories</option>
-          ${CATEGORIES.map(c => `<option>${c.name}</option>`).join('')}
-        </select>
+
+        <!-- White-Pink Multi-Dropdown for Admin Categories -->
+        <div class="multi-dropdown-wrap" id="adminProdCatWrap">
+          <div class="multi-dropdown-trigger" id="adminProdCatTrigger">
+            <span id="adminProdCatLabel">All categories</span>
+            <span class="arrow-icon">▼</span>
+          </div>
+          <div class="multi-dropdown-menu align-right" id="adminProdCatMenu">
+            <div class="multi-dropdown-item" data-cat="__ALL__">
+              <span class="circle-checkbox checked" id="chkAdminProdCatAll">✓</span>
+              <span>เลือกทั้งหมด (All categories)</span>
+            </div>
+            ${CATEGORIES.map(c => `
+              <div class="multi-dropdown-item" data-cat="${escapeHTML(c.name)}">
+                <span class="circle-checkbox checked" data-admin-prod-cat-chk="${escapeHTML(c.name)}">✓</span>
+                <span>${escapeHTML(c.name)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
       </div>
     `);
     root.appendChild(filter);
+
+    const prodCatTrigger = filter.querySelector('#adminProdCatTrigger');
+    const prodCatMenu = filter.querySelector('#adminProdCatMenu');
+    const prodCatLabel = filter.querySelector('#adminProdCatLabel');
+    const chkAdminProdCatAll = filter.querySelector('#chkAdminProdCatAll');
+
+    prodCatTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      prodCatMenu.classList.toggle('show');
+      prodCatTrigger.classList.toggle('active');
+    });
+
+    const closeAdminProdDropdown = () => {
+      prodCatMenu.classList.remove('show');
+      prodCatTrigger.classList.remove('active');
+    };
+    document.addEventListener('click', closeAdminProdDropdown);
+    prodCatMenu.addEventListener('click', (e) => e.stopPropagation());
+
+    prodCatMenu.querySelectorAll('.multi-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const cat = item.dataset.cat;
+        if (cat === '__ALL__') {
+          selectedAdminCats.clear();
+          prodCatMenu.querySelectorAll('[data-admin-prod-cat-chk]').forEach(c => c.classList.add('checked'));
+          chkAdminProdCatAll.classList.add('checked');
+          prodCatLabel.textContent = 'All categories';
+        } else {
+          if (selectedAdminCats.has(cat)) {
+            selectedAdminCats.delete(cat);
+            item.querySelector('.circle-checkbox')?.classList.remove('checked');
+          } else {
+            selectedAdminCats.add(cat);
+            item.querySelector('.circle-checkbox')?.classList.add('checked');
+          }
+          const allChecked = selectedAdminCats.size === 0 || selectedAdminCats.size === CATEGORIES.length;
+          chkAdminProdCatAll.classList.toggle('checked', allChecked);
+          if (selectedAdminCats.size === 0) {
+            prodCatLabel.textContent = 'All categories';
+          } else if (selectedAdminCats.size === 1) {
+            prodCatLabel.textContent = Array.from(selectedAdminCats)[0];
+          } else {
+            prodCatLabel.textContent = `หมวดหมู่ (${selectedAdminCats.size})`;
+          }
+        }
+        currentPage = 1;
+        draw();
+      });
+    });
 
     const meta = el(`<div class="flex items-center" style="justify-content:space-between; margin-bottom:10px; color:var(--muted); font-size:12.5px"><span id="prodCount"></span><span>Tap to add · Right-click to remove</span></div>`);
     root.appendChild(meta);
@@ -3461,9 +3654,12 @@
     let currentPage = 1;
 
     function draw() {
-      const q = filter.querySelector('#prodSearch').value.toLowerCase();
-      const cat = filter.querySelector('#prodCat').value;
-      const list = PRODUCTS.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!cat || p.cat === cat));
+      const q = filter.querySelector('#prodSearch').value.toLowerCase().trim();
+      const list = PRODUCTS.filter(p => {
+        const matchesQuery = !q || p.name.toLowerCase().includes(q) || (p.cat && p.cat.toLowerCase().includes(q));
+        const matchesCat = selectedAdminCats.size === 0 || selectedAdminCats.has(p.cat);
+        return matchesQuery && matchesCat;
+      });
       const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
       if (currentPage > totalPages) currentPage = totalPages;
       const start = (currentPage - 1) * PAGE_SIZE;
@@ -3479,8 +3675,11 @@
         const qty = state.selected[p.id] || 0;
         const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
         const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
+        const rule = getProductPriceRule(p);
+        const clickStep = (rule && rule.stepQty && rule.stepQty > 0) ? rule.stepQty : 1;
+
         const tile = el(`
-          <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(p.price)}">
+          <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(p.price)} (ทีละ ${clickStep} ชิ้น)">
             ${mediaHtml}
             <span class="stock-dot"></span>
             <span class="qty-badge">${qty}</span>
@@ -3488,7 +3687,7 @@
         `);
         tile.addEventListener('click', () => {
           if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-          state.selected[p.id] = (state.selected[p.id] || 0) + 1;
+          state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
           tile.classList.add('selected');
           const badge = tile.querySelector('.qty-badge');
           badge.textContent = state.selected[p.id];
@@ -3497,7 +3696,9 @@
         tile.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           if (!state.selected[p.id]) return openProductQuickModal(p);
-          state.selected[p.id] -= 1;
+          const curr = state.selected[p.id] || 0;
+          const rem = curr % clickStep;
+          state.selected[p.id] = (rem !== 0) ? (curr - rem) : (curr - clickStep);
           if (state.selected[p.id] <= 0) {
             delete state.selected[p.id];
             tile.classList.remove('selected');
@@ -3524,7 +3725,6 @@
     }
 
     filter.querySelector('#prodSearch').addEventListener('input', () => { currentPage = 1; draw(); });
-    filter.querySelector('#prodCat').addEventListener('change', () => { currentPage = 1; draw(); });
     draw();
   };
 
@@ -5614,13 +5814,15 @@
 
     const totalRev = ORDERS.reduce((s, o) => s + (o.status !== 'cancelled' ? Number(o.total || 0) : 0), 0);
     const completedOrders = ORDERS.filter(o => o.status === 'completed').length;
-    const avgVal = completedOrders > 0 ? (totalRev / completedOrders) : 0;
+    const cancelledOrders = ORDERS.filter(o => o.status === 'cancelled');
+    const refundTotal = cancelledOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const avgVal = completedOrders > 0 ? (totalRev / completedOrders) : (ORDERS.length > 0 ? totalRev / ORDERS.length : 0);
 
     const stats = [
-      { label: 'Total Revenue', value: money(totalRev), delta: ORDERS.length > 0 ? '+8.2%' : '0%', icon: ICONS.revenue },
-      { label: 'Orders Completed', value: String(completedOrders), delta: completedOrders > 0 ? `+${completedOrders}` : '0 orders', icon: ICONS.orders },
-      { label: 'Avg Order Value', value: money(avgVal), delta: avgVal > 0 ? '+4.1%' : '฿0.00', icon: ICONS.card },
-      { label: 'Refunds', value: money(0), delta: '0%', icon: ICONS.refund },
+      { label: 'Total Revenue', value: money(totalRev), delta: ORDERS.length > 0 ? `+${ORDERS.length} orders` : '0%', icon: ICONS.revenue },
+      { label: 'Orders Completed', value: String(completedOrders), delta: completedOrders > 0 ? `+${completedOrders} orders` : '0 orders', icon: ICONS.orders },
+      { label: 'Avg Order Value', value: money(avgVal), delta: avgVal > 0 ? 'ต่อออเดอร์' : '฿0.00', icon: ICONS.card },
+      { label: 'Refunds', value: money(refundTotal), delta: cancelledOrders.length > 0 ? `${cancelledOrders.length} cancelled` : '0%', icon: ICONS.refund },
     ];
     const g = el(`<div class="grid stats"></div>`);
     stats.forEach(s => g.appendChild(el(`
@@ -5634,11 +5836,11 @@
     root.appendChild(el(`
       <div class="grid two-col" style="margin-top:18px">
         <div class="card">
-          <div class="card-title">Revenue Trend</div><div class="card-sub">Daily revenue breakdown</div>
+          <div class="card-title">Revenue Trend</div><div class="card-sub">Daily revenue breakdown (ตามวันที่จริง)</div>
           <div class="chart-wrap"><canvas id="revChart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">Sales by Category</div><div class="card-sub">Share of revenue</div>
+          <div class="card-title">Sales by Category</div><div class="card-sub">Share of revenue (แบ่งตามหมวดหมู่จริง)</div>
           <div class="chart-wrap"><canvas id="catChart"></canvas></div>
         </div>
       </div>
@@ -5655,27 +5857,44 @@
     if (!window.Chart) return;
     const colors = getThemeChartColors();
 
-    const hasOrders = ORDERS.length > 0;
-
     if (rev) {
       if (reportsRevChartInstance) reportsRevChartInstance.destroy();
       const grad = rev.getContext('2d').createLinearGradient(0, 0, 0, 240);
       grad.addColorStop(0, colors.fillGradStart);
       grad.addColorStop(1, colors.fillGradEnd);
+
+      // Group real revenue by actual dates in ORDERS
+      const orderDates = Array.from(new Set(ORDERS.map(o => o.date).filter(Boolean))).sort();
+      let revLabels = [];
+      let revData = [];
+      if (orderDates.length > 0) {
+        revLabels = orderDates.map(d => {
+          const parts = d.split('-');
+          return parts.length >= 3 ? `${parts[2]}/${parts[1]}` : d;
+        });
+        revData = orderDates.map(d => {
+          return ORDERS.filter(o => o.date === d && o.status !== 'cancelled')
+            .reduce((sum, o) => sum + Number(o.total || 0), 0);
+        });
+      } else {
+        revLabels = ['Today'];
+        revData = [0];
+      }
+
       reportsRevChartInstance = new Chart(rev, {
         type: 'line',
         data: {
-          labels: ['1','5','10','15','20','25','30'],
+          labels: revLabels,
           datasets: [{
             label: 'Revenue (฿)',
-            data: hasOrders ? [420, 610, 540, 720, 880, 760, 940] : [0, 0, 0, 0, 0, 0, 0],
+            data: revData,
             borderColor: colors.primary600,
             backgroundColor: grad,
             fill: true,
-            tension: 0.4,
+            tension: 0.3,
             pointBackgroundColor: colors.card,
             pointBorderColor: colors.primary600,
-            pointRadius: 4
+            pointRadius: 5
           }]
         },
         options: {
@@ -5691,14 +5910,31 @@
 
     if (cat) {
       if (reportsCatChartInstance) reportsCatChartInstance.destroy();
-      const catCounts = CATEGORIES.map(c => PRODUCTS.filter(p => p.cat === c.name).length);
-      const totalCatProd = catCounts.reduce((a, b) => a + b, 0);
+
+      // Real category sales breakdown
+      const catSalesMap = {};
+      CATEGORIES.forEach(c => { catSalesMap[c.name] = 0; });
+      ORDERS.forEach(o => {
+        if (o.status === 'cancelled') return;
+        if (Array.isArray(o.items_data)) {
+          o.items_data.forEach(it => {
+            const catName = it.cat || 'อื่นๆ';
+            catSalesMap[catName] = (catSalesMap[catName] || 0) + Number(it.subtotal || (it.price * it.qty) || 0);
+          });
+        }
+      });
+      const hasCategorySales = Object.values(catSalesMap).some(v => v > 0);
+      const catLabels = CATEGORIES.map(c => c.name);
+      const catData = hasCategorySales
+        ? CATEGORIES.map(c => catSalesMap[c.name] || 0)
+        : CATEGORIES.map(c => PRODUCTS.filter(p => p.cat === c.name).length);
+
       reportsCatChartInstance = new Chart(cat, {
         type: 'doughnut',
         data: {
-          labels: CATEGORIES.map(c => c.name),
+          labels: catLabels,
           datasets: [{
-            data: totalCatProd > 0 ? catCounts : CATEGORIES.map(() => 0),
+            data: catData,
             backgroundColor: colors.paletteColors,
             borderColor: colors.card,
             borderWidth: 2
@@ -5986,7 +6222,7 @@
           <div class="grid" style="grid-template-columns: 1fr 1fr; gap:14px; margin-top:12px;">
             <div class="field">
               <label>ข้อความบนปุ่มติดต่อ (Contact Button Label)</label>
-              <input class="input" id="setTrackingContactLabel" value="${escapeHTML(state.store.trackingContactLabel || '💬 ทักแชทแจ้งออเดอร์ (Line OA)')}" />
+              <input class="input" id="setTrackingContactLabel" value="${escapeHTML(cleanEmoji(state.store.trackingContactLabel || 'ทักแชทแจ้งออเดอร์ (Line OA)'))}" />
             </div>
             <div class="field">
               <label>ลิงก์ติดต่อร้าน (Contact Link / URL)</label>
@@ -8359,7 +8595,7 @@
                     <span id="multiLevelLabel">All Levels</span>
                     <span class="arrow-icon">▼</span>
                   </div>
-                  <div class="multi-dropdown-menu" id="multiLevelMenu">
+                  <div class="multi-dropdown-menu align-right" id="multiLevelMenu">
                     <div class="multi-dropdown-item" data-level="__ALL__">
                       <span class="circle-checkbox checked" id="chkLevelAll">✓</span>
                       <span>ทุกเลเวล (All Levels)</span>
@@ -8404,23 +8640,29 @@
           e.stopPropagation();
           levelMenu.classList.remove('show');
           levelTrigger.classList.remove('active');
-          catMenu.classList.toggle('show');
-          catTrigger.classList.toggle('active');
+          wrap.querySelector('#multiLevelWrap')?.classList.remove('open');
+          const isOpen = catMenu.classList.toggle('show');
+          catTrigger.classList.toggle('active', isOpen);
+          wrap.querySelector('#multiCatWrap')?.classList.toggle('open', isOpen);
         });
 
         levelTrigger.addEventListener('click', (e) => {
           e.stopPropagation();
           catMenu.classList.remove('show');
           catTrigger.classList.remove('active');
-          levelMenu.classList.toggle('show');
-          levelTrigger.classList.toggle('active');
+          wrap.querySelector('#multiCatWrap')?.classList.remove('open');
+          const isOpen = levelMenu.classList.toggle('show');
+          levelTrigger.classList.toggle('active', isOpen);
+          wrap.querySelector('#multiLevelWrap')?.classList.toggle('open', isOpen);
         });
 
         const closeAllDropdowns = () => {
           catMenu.classList.remove('show');
           catTrigger.classList.remove('active');
+          wrap.querySelector('#multiCatWrap')?.classList.remove('open');
           levelMenu.classList.remove('show');
           levelTrigger.classList.remove('active');
+          wrap.querySelector('#multiLevelWrap')?.classList.remove('open');
         };
         document.addEventListener('click', closeAllDropdowns);
         catMenu.addEventListener('click', (e) => e.stopPropagation());
@@ -8542,10 +8784,10 @@
             const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
             const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
             const rule = getProductPriceRule(p);
-            const ruleTiers = rule?.tiers || [];
+            const clickStep = (rule && rule.stepQty && rule.stepQty > 0) ? rule.stepQty : 1;
 
             const tile = el(`
-              <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · Lv.${p.level || 1} · ${money(p.price)}">
+              <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · Lv.${p.level || 1} · ${money(p.price)} (คลิกเพิ่ม/ลดทีละ ${clickStep} ชิ้น)">
                 ${mediaHtml}
                 <span class="stock-dot"></span>
                 <span class="qty-badge">${qty}</span>
@@ -8554,8 +8796,7 @@
 
             // Tile Click to increment
             tile.addEventListener('click', (e) => {
-              if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-              const clickStep = (rule && rule.stepQty) ? rule.stepQty : 1;
+              if (p.stock === 0) return toast(`${p.name} สินค้าหมด`, 'error');
               state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
               tile.classList.add('selected');
               const badge = tile.querySelector('.qty-badge');
@@ -8567,7 +8808,9 @@
             tile.addEventListener('contextmenu', (e) => {
               e.preventDefault();
               if (!state.selected[p.id]) return;
-              state.selected[p.id] -= 1;
+              const curr = state.selected[p.id] || 0;
+              const rem = curr % clickStep;
+              state.selected[p.id] = (rem !== 0) ? (curr - rem) : (curr - clickStep);
               if (state.selected[p.id] <= 0) {
                 delete state.selected[p.id];
                 tile.classList.remove('selected');
@@ -8697,7 +8940,12 @@
           btn.addEventListener('click', () => {
             const pid = btn.dataset.id;
             if (state.selected[pid]) {
-              state.selected[pid]--;
+              const p = PRODUCTS.find(x => String(x.id) === String(pid));
+              const rule = p ? getProductPriceRule(p) : null;
+              const step = (rule && rule.stepQty && rule.stepQty > 0) ? rule.stepQty : 1;
+              const curr = state.selected[pid] || 0;
+              const rem = curr % step;
+              state.selected[pid] = (rem !== 0) ? (curr - rem) : (curr - step);
               if (state.selected[pid] <= 0) delete state.selected[pid];
               drawStore('cart');
               updateFloatingCartBtn();
@@ -8707,7 +8955,10 @@
         cartWrap.querySelectorAll('.btn-cart-plus').forEach(btn => {
           btn.addEventListener('click', () => {
             const pid = btn.dataset.id;
-            state.selected[pid] = (state.selected[pid] || 0) + 1;
+            const p = PRODUCTS.find(x => String(x.id) === String(pid));
+            const rule = p ? getProductPriceRule(p) : null;
+            const step = (rule && rule.stepQty && rule.stepQty > 0) ? rule.stepQty : 1;
+            state.selected[pid] = (state.selected[pid] || 0) + step;
             drawStore('cart');
             updateFloatingCartBtn();
           });
@@ -9244,7 +9495,7 @@
         const trackingTitle = state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'BNC HayMate';
         const trackingSub = state.store.trackingReviewSub || '';
         const trackingBtn = state.store.trackingReviewBtnText || 'เขียนรีวิว & ให้คะแนนร้าน';
-        const contactLabel = state.store.trackingContactLabel || '💬 ทักแชทแจ้งออเดอร์ (Line OA)';
+        const contactLabel = cleanEmoji(state.store.trackingContactLabel || 'ทักแชทแจ้งออเดอร์ (Line OA)');
         const contactUrl = state.store.trackingContactUrl || 'https://line.me/R/ti/p/@bnchaymate';
 
         view.appendChild(el(`
@@ -9292,7 +9543,7 @@
               </div>
               <div style="display:flex; flex-wrap:wrap; gap:10px;">
                 <button type="button" class="btn btn-primary" id="btnCopyOrderId" style="flex:1; min-width:180px; font-size:13px; font-weight:700; border-radius:12px; padding:9px 16px;">
-                  📋 คัดลอกรหัสออเดอร์
+                  คัดลอกรหัสออเดอร์
                 </button>
                 <a href="${escapeHTML(contactUrl)}" target="_blank" rel="noopener noreferrer" class="btn" id="btnContactShopLink" style="flex:1; min-width:180px; font-size:13px; font-weight:700; border-radius:12px; padding:9px 16px; background:var(--primary-50); color:var(--accent-text); border:1.5px solid var(--border); text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                   ${escapeHTML(contactLabel)}
@@ -9322,7 +9573,7 @@
           const code = latestOrder.id || '';
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(code).then(() => {
-              toast(`คัดลอกรหัสออเดอร์ "${code}" เรียบร้อยแล้ว 📋`, 'success');
+              toast(`คัดลอกรหัสออเดอร์ "${code}" เรียบร้อยแล้ว`, 'success');
             }).catch(() => {
               toast(`คัดลอกรหัส: ${code}`, 'success');
             });
