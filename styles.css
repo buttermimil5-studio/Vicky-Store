@@ -1824,3 +1824,84 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
   transform: translateX(20px);
 }
 
+/* Price Rule Box (Setting Price) Styling */
+.price-rule-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.2s ease;
+}
+
+.price-rule-card:hover {
+  border-color: var(--primary-400);
+}
+
+.price-rule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.price-badge-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(239, 166, 193, 0.15);
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.price-badge-lvl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(72, 187, 120, 0.15);
+  color: #38a169;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.price-badge-lvl.all {
+  background: rgba(66, 153, 225, 0.15);
+  color: #3182ce;
+}
+
+.price-step-row {
+  background: var(--primary-50);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.price-tier-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  transition: border-color 0.15s;
+}
+
+.price-tier-item:hover {
+  border-color: var(--primary-300);
+}
+
+

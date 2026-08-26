@@ -372,6 +372,47 @@
         badge: 'Hot Item'
       }
     ],
+    priceRules: [
+      {
+        id: 'pr_1',
+        category: 'อาหารสัตว์',
+        levelMin: 1,
+        levelMax: 75,
+        isAllLevel: false,
+        step: 10,
+        tiers: [
+          { id: 'pt_1', qty: 10, price: 2.00 },
+          { id: 'pt_2', qty: 50, price: 8.00 },
+          { id: 'pt_3', qty: 100, price: 15.00 }
+        ]
+      },
+      {
+        id: 'pr_2',
+        category: 'อาหารสัตว์',
+        levelMin: 76,
+        levelMax: 256,
+        isAllLevel: false,
+        step: 10,
+        tiers: [
+          { id: 'pt_4', qty: 10, price: 3.00 },
+          { id: 'pt_5', qty: 50, price: 10.00 },
+          { id: 'pt_6', qty: 100, price: 18.00 }
+        ]
+      },
+      {
+        id: 'pr_3',
+        category: 'ขนม',
+        levelMin: 1,
+        levelMax: 999,
+        isAllLevel: true,
+        step: 10,
+        tiers: [
+          { id: 'pt_7', qty: 10, price: 5.00 },
+          { id: 'pt_8', qty: 50, price: 22.00 },
+          { id: 'pt_9', qty: 100, price: 40.00 }
+        ]
+      }
+    ],
     pin: '123456',
     deletePin: '888888'
   };
@@ -389,6 +430,9 @@
       }
       if (!loadedStore.gameAccounts || !Array.isArray(loadedStore.gameAccounts)) {
         loadedStore.gameAccounts = DEFAULT_STORE_CONFIG.gameAccounts;
+      }
+      if (!loadedStore.priceRules || !Array.isArray(loadedStore.priceRules)) {
+        loadedStore.priceRules = DEFAULT_STORE_CONFIG.priceRules;
       }
       if (loadedStore.enableItems === undefined) loadedStore.enableItems = true;
       if (loadedStore.enableCoinFarm === undefined) loadedStore.enableCoinFarm = true;
@@ -3428,6 +3472,7 @@
   function renderAdminItemsTab(container) {
     const currentStep = Number(state.store.itemClickStep) || 1;
     const currentRatio = state.store.priceRatio !== undefined ? Number(state.store.priceRatio) : 1.0;
+    const priceRules = state.store.priceRules || [];
 
     const wrap = el(`
       <div>
@@ -3443,38 +3488,26 @@
           </label>
         </div>
 
-        <!-- Settings Box: Item Click Step & Price Ratio -->
-        <div class="card" style="margin-bottom:14px; background:var(--card);">
-          <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <!-- SECTION: Setting Price (ตั้งค่าราคา & สเต็ปตามเลเวลและหมวดหมู่) -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
             <div>
-              <div class="card-title" style="font-size:14.5px;">การตั้งค่าจำนวนคลิกไอเทมและสัดส่วนราคา (Item Click &amp; Price Ratio Settings)</div>
-              <div class="card-sub">กำหนดจำนวนชิ้นที่จะเพิ่มต่อ 1 คลิก และสัดส่วนตัวคูณราคาขายของสินค้าไอเทม</div>
+              <h2 style="font-size:19px; font-weight:800; color:var(--text); margin:0 0 3px 0;">Setting Price (ตั้งค่าราคา &amp; สเต็ปตามเลเวลและหมวดหมู่)</h2>
+              <div style="font-size:12px; color:var(--muted);">จัดการกำหนดสเต็ปราคาสินค้าขายส่งตามหมวดหมู่และช่วงเลเวล (เช่น อาหารสัตว์ Lv. 1–75, Lv. 76–256 หรือ All Level)</div>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" id="btnSaveItemSettings" style="font-weight:700; font-size:12px; padding:6px 14px;">
-              บันทึกการตั้งค่าไอเทม (Save Settings)
+            <button type="button" class="btn btn-primary" id="btnAddPriceRuleBox" style="font-weight:800; border-radius:12px; font-size:12.5px; padding:7px 16px;">
+              + เพิ่มกล่องราคาใหม่ (+ Add Price Rule Box)
             </button>
           </div>
 
-          <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-top:8px;">
-            <div class="field" style="margin-bottom:0;">
-              <label style="font-size:12px; font-weight:700;">จำนวนคลิกไอเทมเริ่มต้น (Default Click Quantity Step)</label>
-              <select class="select" id="setAdminClickStep" style="font-size:13px; font-weight:700;">
-                <option value="1" ${currentStep === 1 ? 'selected' : ''}>1 ชิ้น / คลิก (x1)</option>
-                <option value="10" ${currentStep === 10 ? 'selected' : ''}>10 ชิ้น / คลิก (x10)</option>
-                <option value="80" ${currentStep === 80 ? 'selected' : ''}>80 ชิ้น / คลิก (x80)</option>
-                <option value="100" ${currentStep === 100 ? 'selected' : ''}>100 ชิ้น / คลิก (x100)</option>
-              </select>
-              <div style="font-size:11px; color:var(--muted); margin-top:3px;">จำนวนชิ้นที่ระบบจะเพิ่มลงตะกร้าเมื่อคลิกสินค้า 1 ครั้ง</div>
-            </div>
-
-            <div class="field" style="margin-bottom:0;">
-              <label style="font-size:12px; font-weight:700;">ช่องสัดส่วนราคา (Price Multiplier / Ratio)</label>
-              <input type="number" step="0.05" min="0.1" max="100" class="input" id="setAdminPriceRatio" value="${currentRatio}" style="font-size:13px; font-weight:700;" placeholder="เช่น 1.0 (ราคาปกติ), 1.2, 1.5" />
-              <div style="font-size:11px; color:var(--muted); margin-top:3px;">ตัวคูณสัดส่วนราคาขาย (เช่น 1.0 = ราคาเดิม, 1.2 = เพิ่ม 20%)</div>
-            </div>
+          <div style="font-weight:800; font-size:13.5px; color:var(--text); margin-bottom:12px;">
+            กล่องราคาที่เปิดใช้งาน (${priceRules.length} กล่อง)
           </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;" id="priceRulesGrid"></div>
         </div>
 
+        <!-- SECTION: Item Catalog & Controls -->
         <div class="card" style="margin-bottom:14px;">
           <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
             <div>
@@ -3528,21 +3561,137 @@
     `);
     container.appendChild(wrap);
 
+    // Module Switch
     wrap.querySelector('#swEnableItems')?.addEventListener('change', (e) => {
       state.store.enableItems = e.target.checked;
       syncStoreSettingsAcrossDevices();
       toast(state.store.enableItems ? 'เปิดการแสดงผลหมวด Item ในหน้าร้านแล้ว' : 'ปิดการแสดงผลหมวด Item ในหน้าร้านแล้ว', 'info');
     });
 
-    wrap.querySelector('#btnSaveItemSettings')?.addEventListener('click', () => {
-      const stepVal = Number(wrap.querySelector('#setAdminClickStep')?.value) || 1;
-      const ratioVal = Number(wrap.querySelector('#setAdminPriceRatio')?.value) || 1.0;
-      state.store.itemClickStep = stepVal;
-      state.store.priceRatio = ratioVal;
-      syncStoreSettingsAcrossDevices();
-      toast(`บันทึกการตั้งค่าไอเทม: คลิกละ ${stepVal} ชิ้น, สัดส่วนราคา x${ratioVal} เรียบร้อย`, 'success');
-      drawGrid();
-    });
+    // Render Price Rules Boxes
+    const rulesGrid = wrap.querySelector('#priceRulesGrid');
+    const renderPriceRules = () => {
+      if (!rulesGrid) return;
+      rulesGrid.innerHTML = '';
+      const list = state.store.priceRules || [];
+
+      if (list.length === 0) {
+        rulesGrid.innerHTML = `
+          <div style="grid-column:1/-1; padding:24px; text-align:center; background:var(--primary-50); border:1.5px dashed var(--border); border-radius:16px; color:var(--muted);">
+            <div style="font-weight:700; font-size:13.5px; color:var(--text); margin-bottom:4px;">ยังไม่มีกล่องราคาที่กำหนด</div>
+            <div style="font-size:12px;">กดปุ่ม "+ เพิ่มกล่องราคาใหม่" ด้านบนเพื่อเริ่มกำหนดสเต็ปและเรทราคาตามหมวดหมู่และเลเวล</div>
+          </div>
+        `;
+        return;
+      }
+
+      list.forEach((rule, rIdx) => {
+        const card = el(`
+          <div class="price-rule-card">
+            <div class="price-rule-header">
+              <div class="flex items-center gap-2">
+                <span class="price-badge-cat">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                  <span>${escapeHTML(rule.category || 'ทุกหมวดหมู่')}</span>
+                </span>
+                <span class="price-badge-lvl ${rule.isAllLevel ? 'all' : ''}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                  <span>${rule.isAllLevel ? 'All Level' : `${rule.levelMin || 1} – ${rule.levelMax || 999}`}</span>
+                </span>
+              </div>
+              <div class="flex gap-1">
+                <button type="button" class="btn btn-sm btn-ghost btn-edit-rule" title="แก้ไขกล่องราคา" style="padding:4px 8px; font-size:12px; border-radius:8px;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+                <button type="button" class="btn btn-sm btn-ghost btn-del-rule" title="ลบกล่องราคา" style="padding:4px 8px; font-size:12px; color:var(--danger); border-radius:8px;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="price-step-row">
+              <div class="flex items-center gap-2" style="font-size:12.5px; font-weight:700; color:var(--text);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span>กดคลิกเพิ่มทีละ:</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input type="number" class="input input-sm inp-rule-step" value="${rule.step || 10}" min="1" max="1000" style="width:65px; text-align:center; font-weight:800; padding:4px 6px; font-size:13px; border-radius:8px;" />
+                <span style="font-size:11.5px; font-weight:700; color:var(--muted);">ชิ้น / คลิก</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center" style="justify-content:space-between; margin-bottom:8px;">
+                <span style="font-weight:800; font-size:12.5px; color:var(--text);">รายการราคา (${(rule.tiers || []).length})</span>
+                <button type="button" class="btn btn-sm btn-ghost btn-add-tier" style="font-size:11.5px; font-weight:800; padding:3px 8px; border:1px solid var(--border); border-radius:8px;">
+                  + เพิ่มราคา
+                </button>
+              </div>
+
+              <div class="price-tiers-list">
+                ${(rule.tiers && rule.tiers.length > 0) ? rule.tiers.map((t, tIdx) => {
+                  const unitPrice = t.qty > 0 ? (t.price / t.qty) : 0;
+                  return `
+                    <div class="price-tier-item">
+                      <div style="font-size:13px; font-weight:700; color:var(--text);">
+                        <strong>${t.qty} ชิ้น</strong> → <span style="font-weight:900; color:var(--accent-text); font-size:14.5px;">${money(t.price)}</span>
+                        <span style="font-size:11px; color:var(--muted); font-weight:600; margin-left:4px;">(${money(unitPrice)}/ชิ้น)</span>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-ghost btn-del-tier" data-tidx="${tIdx}" style="padding:2px 6px; color:var(--danger); font-size:13px; font-weight:800;" title="ลบรายการราคานี้">
+                        ✕
+                      </button>
+                    </div>
+                  `;
+                }).join('') : `
+                  <div style="padding:12px; text-align:center; font-size:11.5px; color:var(--muted); background:var(--primary-50); border-radius:10px;">ยังไม่มีรายการราคาในกล่องนี้</div>
+                `}
+              </div>
+            </div>
+          </div>
+        `);
+
+        // Edit Step Input
+        const stepInp = card.querySelector('.inp-rule-step');
+        stepInp?.addEventListener('change', () => {
+          rule.step = Number(stepInp.value) || 10;
+          syncStoreSettingsAcrossDevices();
+          toast(`อัปเดตสเต็ปคลิก ${rule.category} เป็น ${rule.step} ชิ้น/คลิก แล้ว`, 'success');
+        });
+
+        // Edit Rule
+        card.querySelector('.btn-edit-rule')?.addEventListener('click', () => openAddPriceRuleModal(rule));
+
+        // Delete Rule
+        card.querySelector('.btn-del-rule')?.addEventListener('click', () => {
+          if (confirm(`คุณต้องการลบกล่องราคา "${rule.category}" ใช่หรือไม่?`)) {
+            state.store.priceRules.splice(rIdx, 1);
+            syncStoreSettingsAcrossDevices();
+            toast('ลบกล่องราคาเรียบร้อยแล้ว', 'info');
+            renderPriceRules();
+          }
+        });
+
+        // Add Tier
+        card.querySelector('.btn-add-tier')?.addEventListener('click', () => openAddPriceTierModal(rule));
+
+        // Delete Tier
+        card.querySelectorAll('.btn-del-tier').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const tIdx = +btn.dataset.tidx;
+            rule.tiers.splice(tIdx, 1);
+            syncStoreSettingsAcrossDevices();
+            toast('ลบรายการราคาเรียบร้อย', 'info');
+            renderPriceRules();
+          });
+        });
+
+        rulesGrid.appendChild(card);
+      });
+    };
+
+    renderPriceRules();
+
+    wrap.querySelector('#btnAddPriceRuleBox')?.addEventListener('click', () => openAddPriceRuleModal());
 
     wrap.querySelector('#btnAddItemProduct')?.addEventListener('click', () => openAddProductModal());
     wrap.querySelector('#btnManageCategories')?.addEventListener('click', () => {
@@ -3663,6 +3812,202 @@
     catSelect.addEventListener('change', () => { currentPage = 1; drawGrid(); });
     levelSelect.addEventListener('change', () => { currentPage = 1; drawGrid(); });
     drawGrid();
+  }
+
+  // Modals for Setting Price
+  function openAddPriceRuleModal(ruleToEdit = null) {
+    const isEdit = !!ruleToEdit;
+    const rule = ruleToEdit || {
+      id: 'pr_' + Date.now(),
+      category: CATEGORIES[0]?.name || 'อาหารสัตว์',
+      levelMin: 1,
+      levelMax: 75,
+      isAllLevel: false,
+      step: 10,
+      tiers: [
+        { id: 'pt_1', qty: 10, price: 2.00 },
+        { id: 'pt_2', qty: 50, price: 8.00 },
+        { id: 'pt_3', qty: 100, price: 15.00 }
+      ]
+    };
+
+    const { modal, body } = openModal({
+      title: isEdit ? 'แก้ไขกล่องราคา (Edit Price Rule Box)' : 'เพิ่มกล่องราคาใหม่ (+ Add Price Rule Box)',
+      width: 480
+    });
+
+    body.appendChild(el(`
+      <form id="formPriceRule" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="field">
+          <label style="font-weight:700;">หมวดหมู่สินค้า (Category)</label>
+          <select class="select" id="prCategory" required>
+            <option value="All" ${rule.category === 'All' ? 'selected' : ''}>ทุกหมวดหมู่ (All Categories)</option>
+            ${CATEGORIES.map(c => `<option value="${escapeHTML(c.name)}" ${rule.category === c.name ? 'selected' : ''}>${escapeHTML(c.name)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="field">
+          <label style="font-weight:700;">รูปแบบการกรองเลเวล (Level Range)</label>
+          <div class="flex gap-2" style="margin-bottom:8px;">
+            <button type="button" class="btn btn-sm ${!rule.isAllLevel ? 'btn-primary' : ''}" id="btnPrTypeRange" style="font-size:12px;">ระบุช่วงเลเวล (Min - Max)</button>
+            <button type="button" class="btn btn-sm ${rule.isAllLevel ? 'btn-primary' : ''}" id="btnPrTypeAll" style="font-size:12px;">ทุกเลเวล (All Level)</button>
+          </div>
+          <div class="grid" id="prRangeWrap" style="grid-template-columns:1fr 1fr; gap:10px; display:${rule.isAllLevel ? 'none' : 'grid'};">
+            <div>
+              <label style="font-size:11px;">เลเวลเริ่มต้น (Min Lv.)</label>
+              <input type="number" class="input" id="prMinLvl" value="${rule.levelMin || 1}" min="1" max="999" />
+            </div>
+            <div>
+              <label style="font-size:11px;">เลเวลสูงสุด (Max Lv.)</label>
+              <input type="number" class="input" id="prMaxLvl" value="${rule.levelMax || 75}" min="1" max="999" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label style="font-weight:700;">จำนวนคลิกเพิ่มทีละ (Items per click step)</label>
+          <input type="number" class="input" id="prStep" value="${rule.step || 10}" min="1" max="1000" placeholder="เช่น 10" required />
+          <div style="font-size:11px; color:var(--muted); margin-top:3px;">จำนวนชิ้นที่ระบบจะเพิ่มลงตะกร้าเมื่อคลิกสินค้าในหมวด/เลเวลนี้</div>
+        </div>
+
+        <div class="flex gap-2" style="justify-content:flex-end; margin-top:10px;">
+          <button type="button" class="btn" id="btnCancelPr">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="font-weight:800;">${isEdit ? 'บันทึกการแก้ไข' : 'บันทึกกล่องราคา'}</button>
+        </div>
+      </form>
+    `));
+
+    let isAllLvl = !!rule.isAllLevel;
+    const btnTypeRange = body.querySelector('#btnPrTypeRange');
+    const btnTypeAll = body.querySelector('#btnPrTypeAll');
+    const rangeWrap = body.querySelector('#prRangeWrap');
+
+    btnTypeRange?.addEventListener('click', () => {
+      isAllLvl = false;
+      btnTypeRange.classList.add('btn-primary');
+      btnTypeAll.classList.remove('btn-primary');
+      rangeWrap.style.display = 'grid';
+    });
+
+    btnTypeAll?.addEventListener('click', () => {
+      isAllLvl = true;
+      btnTypeAll.classList.add('btn-primary');
+      btnTypeRange.classList.remove('btn-primary');
+      rangeWrap.style.display = 'none';
+    });
+
+    body.querySelector('#btnCancelPr')?.addEventListener('click', () => closeModal());
+
+    body.querySelector('#formPriceRule')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const cat = body.querySelector('#prCategory').value;
+      const step = Number(body.querySelector('#prStep').value) || 10;
+      const minLvl = isAllLvl ? 1 : (Number(body.querySelector('#prMinLvl').value) || 1);
+      const maxLvl = isAllLvl ? 999 : (Number(body.querySelector('#prMaxLvl').value) || 999);
+
+      if (!state.store.priceRules) state.store.priceRules = [];
+
+      if (isEdit) {
+        const target = state.store.priceRules.find(r => r.id === rule.id);
+        if (target) {
+          target.category = cat;
+          target.step = step;
+          target.isAllLevel = isAllLvl;
+          target.levelMin = minLvl;
+          target.levelMax = maxLvl;
+        }
+      } else {
+        state.store.priceRules.push({
+          id: 'pr_' + Date.now(),
+          category: cat,
+          step: step,
+          isAllLevel: isAllLvl,
+          levelMin: minLvl,
+          levelMax: maxLvl,
+          tiers: [
+            { id: 'pt_1', qty: step, price: 2.00 },
+            { id: 'pt_2', qty: step * 5, price: 8.00 },
+            { id: 'pt_3', qty: step * 10, price: 15.00 }
+          ]
+        });
+      }
+
+      syncStoreSettingsAcrossDevices();
+      closeModal();
+      toast(isEdit ? 'แก้ไขกล่องราคาเรียบร้อย' : 'เพิ่มกล่องราคาใหม่เรียบร้อยแล้ว', 'success');
+      const content = document.getElementById('adminProductTabContent');
+      if (content && state.adminProductTab === 'items') renderAdminItemsTab(content);
+    });
+  }
+
+  function openAddPriceTierModal(rule) {
+    const { modal, body } = openModal({
+      title: `เพิ่มรายการราคา (${rule.category} ${rule.isAllLevel ? 'All Level' : 'Lv.' + rule.levelMin + '-' + rule.levelMax})`,
+      width: 400
+    });
+
+    body.appendChild(el(`
+      <form id="formAddPriceTier" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="field">
+          <label style="font-weight:700;">จำนวนชิ้น (Quantity)</label>
+          <input type="number" class="input" id="tierQty" placeholder="เช่น 10, 50, 100" min="1" step="1" required />
+        </div>
+
+        <div class="field">
+          <label style="font-weight:700;">ราคารวมทั้งแพ็กเกจ (บาท)</label>
+          <input type="number" class="input" id="tierPrice" placeholder="เช่น 2.00, 8.00, 15.00" min="0.01" step="0.01" required />
+        </div>
+
+        <div id="tierAvgPreview" style="background:var(--primary-50); padding:10px 14px; border-radius:10px; border:1px solid var(--border); font-size:12.5px; font-weight:700; color:var(--accent-text); text-align:center;">
+          เฉลี่ย: ฿0.00 / ชิ้น
+        </div>
+
+        <div class="flex gap-2" style="justify-content:flex-end; margin-top:8px;">
+          <button type="button" class="btn" id="btnCancelTier">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="font-weight:800;">+ เพิ่มราคา</button>
+        </div>
+      </form>
+    `));
+
+    const qtyInp = body.querySelector('#tierQty');
+    const priceInp = body.querySelector('#tierPrice');
+    const prevEl = body.querySelector('#tierAvgPreview');
+
+    const updateAvg = () => {
+      const q = Number(qtyInp.value) || 0;
+      const p = Number(priceInp.value) || 0;
+      if (q > 0 && p > 0) {
+        prevEl.textContent = `เฉลี่ย: ${money(p / q)} / ชิ้น`;
+      } else {
+        prevEl.textContent = `เฉลี่ย: ฿0.00 / ชิ้น`;
+      }
+    };
+
+    qtyInp.addEventListener('input', updateAvg);
+    priceInp.addEventListener('input', updateAvg);
+
+    body.querySelector('#btnCancelTier')?.addEventListener('click', () => closeModal());
+
+    body.querySelector('#formAddPriceTier')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = Number(qtyInp.value) || 0;
+      const p = Number(priceInp.value) || 0;
+      if (q <= 0 || p <= 0) return toast('กรุณากรอกจำนวนและราคาให้ถูกต้อง', 'error');
+
+      if (!rule.tiers) rule.tiers = [];
+      rule.tiers.push({
+        id: 'pt_' + Date.now(),
+        qty: q,
+        price: p
+      });
+      rule.tiers.sort((a, b) => a.qty - b.qty);
+
+      syncStoreSettingsAcrossDevices();
+      closeModal();
+      toast(`เพิ่มราคา ${q} ชิ้น ${money(p)} สำเร็จ`, 'success');
+      const content = document.getElementById('adminProductTabContent');
+      if (content && state.adminProductTab === 'items') renderAdminItemsTab(content);
+    });
   }
 
   // --- TAB 2: วนเหรียญ (Coin Farming Management) ---
