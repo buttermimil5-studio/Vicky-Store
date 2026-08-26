@@ -1336,28 +1336,28 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: var(--primary-300, #F8BFD4);
-  border: 2px solid #FFFFFF;
-  color: #FFFFFF;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  color: var(--accent-text);
   display: grid;
   place-items: center;
   cursor: pointer;
   z-index: 5;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 4px 14px rgba(248, 191, 212, 0.5), 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-soft);
 }
 .carousel-btn:hover {
-  background: var(--primary-600, #EFA6C1);
-  color: #FFFFFF;
-  border-color: #FFFFFF;
+  background: var(--primary-50);
+  color: var(--accent-text);
+  border-color: var(--primary-600);
   transform: translateY(-50%) scale(1.12);
-  box-shadow: 0 6px 18px rgba(239, 166, 193, 0.6), 0 3px 8px rgba(0,0,0,0.12);
+  box-shadow: var(--shadow);
 }
-.carousel-btn.prev { left: 14px; }
-.carousel-btn.next { right: 14px; }
+.carousel-btn.prev { left: 12px; }
+.carousel-btn.next { right: 12px; }
 
 .carousel-dots {
   position: absolute;
@@ -1657,31 +1657,31 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--primary-300, #F8BFD4);
-  color: #FFFFFF;
-  border: 1.5px solid #FFFFFF;
+  background: var(--card);
+  color: var(--accent-text);
+  border: 1.5px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 2;
   transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 8px rgba(248, 191, 212, 0.5), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-soft);
 }
 
 .game-id-gallery-btn:hover {
-  background: var(--primary-600, #EFA6C1);
-  color: #FFFFFF;
-  border-color: #FFFFFF;
+  background: var(--primary-50);
+  color: var(--accent-text);
+  border-color: var(--primary-600);
   transform: translateY(-50%) scale(1.15);
-  box-shadow: 0 4px 12px rgba(239, 166, 193, 0.6);
+  box-shadow: var(--shadow);
 }
 
-.game-id-gallery-btn.prev { left: 8px; }
-.game-id-gallery-btn.next { right: 8px; }
+.game-id-gallery-btn.prev { left: 6px; }
+.game-id-gallery-btn.next { right: 6px; }
 
 .game-id-dots {
   position: absolute;
@@ -2026,10 +2026,10 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
 }
 
 .custom-radio.checked {
-  border-color: var(--primary-400, #F4A7C1);
-  background: var(--primary-300, #F8BFD4);
+  border-color: var(--primary-600);
+  background: var(--primary);
   color: #FFFFFF;
-  box-shadow: 0 1px 4px rgba(248, 191, 212, 0.4);
+  box-shadow: 0 1px 4px var(--shadow-soft);
 }
 
 .custom-radio.checked:after {

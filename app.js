@@ -226,17 +226,25 @@
 
   function persistPromotions() { /* no-op: Supabase is the single source of truth */ }
 
-  let BANNERS = [
-    { id: 1, title: '', sub: '', tag: '', image: '' },
-    { id: 2, title: '', sub: '', tag: '', image: '' },
-    { id: 3, title: '', sub: '', tag: '', image: '' },
-    { id: 4, title: '', sub: '', tag: '', image: '' },
-    { id: 5, title: '', sub: '', tag: '', image: '' }
+  const DEFAULT_BANNERS = [
+    { id: 1, title: 'Special Promo', sub: 'Welcome to our store', tag: 'Welcome', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80' },
+    { id: 2, title: 'Handmade Sweets', sub: 'Fresh daily from the oven', tag: 'Fresh', image: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?w=800&auto=format&fit=crop&q=80' },
+    { id: 3, title: 'HayDay Coins & Items', sub: 'Fast & Secure Delivery', tag: 'Popular', image: 'https://images.unsplash.com/photo-1535141192574-5d4897c13136?w=800&auto=format&fit=crop&q=80' }
   ];
+
+  let BANNERS = JSON.parse(JSON.stringify(DEFAULT_BANNERS));
 
   try {
     const savedB = localStorage.getItem('haypos_banners');
-    if (savedB) BANNERS = JSON.parse(savedB);
+    if (savedB) {
+      const parsed = JSON.parse(savedB);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasAnyImage = parsed.some(b => b && b.image && b.image.trim());
+        if (hasAnyImage) {
+          BANNERS = parsed;
+        }
+      }
+    }
   } catch (e) {}
 
   function persistBanners() {
@@ -9207,47 +9215,41 @@
         });
 
         // 2. Carousel Container (Dynamic Slides, 1:1 Aspect Ratio at Top)
+        const slidesToRender = (Array.isArray(BANNERS) && BANNERS.length > 0 && BANNERS.some(b => b && b.image))
+          ? BANNERS.filter(b => b && b.image)
+          : DEFAULT_BANNERS;
+
         const carouselEl = el(`
           <div>
             ${state.isAdmin ? `
               <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:8px;">
                 <button class="btn btn-sm" id="btnAdminEditBanners" style="background:var(--card); border:1.5px solid var(--border); color:var(--accent-text); font-size:12px; font-weight:700; cursor:pointer;">
-                  จัดการรูปสไลด์ (${BANNERS.length} รูป)
+                  จัดการรูปสไลด์ (${slidesToRender.length} รูป)
                 </button>
               </div>` : ''}
 
-            ${BANNERS.length === 0 ? `
-              <div style="padding:28px 16px; text-align:center; background:var(--primary-50); border:1.5px dashed var(--border); border-radius:18px; margin-bottom:14px;">
-                <div style="font-size:13.5px; font-weight:700; color:var(--accent-text); margin-bottom:4px;">Home Carousel Banners</div>
-                <div style="font-size:12px; color:var(--muted);">ยังไม่มีรูปภาพสไลด์โปรโมท (แอดมินสามารถกดปุ่มด้านบนเพื่อเพิ่มรูปภาพได้)</div>
-              </div>
-            ` : `
             <div class="home-carousel-wrapper" style="margin-top:0;">
               <div class="carousel-track" id="carouselTrack">
-                ${BANNERS.map((b, idx) => `
+                ${slidesToRender.map((b, idx) => `
                   <div class="carousel-slide" data-idx="${idx}">
-                    ${b.image
-                      ? `<img src="${escapeHTML(b.image)}" alt="Slide ${idx + 1}" style="width:100%; height:100%; object-fit:cover; display:block; user-select:none;" />`
-                      : `<div style="width:100%; height:100%; display:grid; place-items:center; background:var(--primary-50); color:var(--muted); font-size:13px; font-weight:700; user-select:none;"><div style="text-align:center;"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 4px; display:block; opacity:0.5;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="2" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><div>Slide #${idx + 1}</div></div></div>`
-                    }
+                    <img src="${escapeHTML(b.image || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80')}" alt="Slide ${idx + 1}" style="width:100%; height:100%; object-fit:cover; display:block; user-select:none;" onerror="this.src='https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80';" />
                   </div>
                 `).join('')}
               </div>
 
-              ${BANNERS.length > 1 ? `
+              ${slidesToRender.length > 1 ? `
                 <button class="carousel-btn prev" id="cPrev" aria-label="Previous">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
                 <button class="carousel-btn next" id="cNext" aria-label="Next">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
               ` : ''}
 
               <div class="carousel-dots" id="cDots">
-                ${BANNERS.map((_, i) => `<div class="carousel-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
+                ${slidesToRender.map((_, i) => `<div class="carousel-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
               </div>
             </div>
-            `}
           </div>
         `);
         view.appendChild(carouselEl);
@@ -9257,9 +9259,9 @@
         }
 
         // Carousel Logic
-        if (BANNERS.length > 0) {
+        if (slidesToRender.length > 0) {
           let currentSlide = 0;
-          const totalSlides = BANNERS.length;
+          const totalSlides = slidesToRender.length;
           const track = carouselEl.querySelector('#carouselTrack');
           const dots = carouselEl.querySelectorAll('.carousel-dot');
 
