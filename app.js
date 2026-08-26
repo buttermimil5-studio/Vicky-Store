@@ -3695,29 +3695,39 @@
   state.adminProductTab = state.adminProductTab || 'items';
 
   PAGES.products = (root) => {
+    const tabTitle1 = state.store.itemsTabTitle || '1. Item HayDay';
+    const tabTitle2 = state.store.coinFarmTabTitle || '2. วนเหรียญ (Coin Farming)';
+    const tabTitle3 = state.store.gameIdsTabTitle || '3. ID Game (ไอดีเกม)';
+
     root.appendChild(el(`
       <div class="page-head">
-        <div>
+        <div style="flex:1;">
           <h1 class="page-title">Products &amp; Services</h1>
           <div class="page-sub">จัดการสินค้าไอเทม บริการวนเหรียญ และตลาดซื้อขายไอดีเกม</div>
+        </div>
+        <div>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnAdminRenameTabs" style="border:1.5px solid var(--border); font-weight:700; border-radius:12px; padding:7px 14px; color:var(--accent-text);">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+            <span>ตั้งชื่อหัวข้อแท็บ (Rename Tabs)</span>
+          </button>
         </div>
       </div>
     `));
 
-    // 3 Sub-tabs Navigation (No Emojis)
+    // 3 Sub-tabs Navigation (Customizable Titles)
     const hubNav = el(`
       <div class="product-hub-nav">
         <button type="button" class="hub-tab-btn ${state.adminProductTab === 'items' ? 'active' : ''}" data-tab="items">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-          <span>1. Item HayDay</span>
+          <span id="labelTab1">${escapeHTML(tabTitle1)}</span>
         </button>
         <button type="button" class="hub-tab-btn ${state.adminProductTab === 'coin_farm' ? 'active' : ''}" data-tab="coin_farm">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9h-4a1.5 1.5 0 0 0 0 3h3a1.5 1.5 0 0 1 0 3h-4"/><path d="M12 7v10"/></svg>
-          <span>2. วนเหรียญ (Coin Farming)</span>
+          <span id="labelTab2">${escapeHTML(tabTitle2)}</span>
         </button>
         <button type="button" class="hub-tab-btn ${state.adminProductTab === 'game_ids' ? 'active' : ''}" data-tab="game_ids">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="5" rx="3"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg>
-          <span>3. ID Game (ไอดีเกม)</span>
+          <span id="labelTab3">${escapeHTML(tabTitle3)}</span>
         </button>
       </div>
     `);
@@ -3734,6 +3744,8 @@
       });
     });
 
+    root.querySelector('#btnAdminRenameTabs')?.addEventListener('click', () => openRenameProductTabsModal(root));
+
     function renderActiveProductTab() {
       contentContainer.innerHTML = '';
       if (state.adminProductTab === 'items') {
@@ -3747,6 +3759,60 @@
 
     renderActiveProductTab();
   };
+
+  function openRenameProductTabsModal(pageRoot) {
+    const cur1 = state.store.itemsTabTitle || '1. Item HayDay';
+    const cur2 = state.store.coinFarmTabTitle || '2. วนเหรียญ (Coin Farming)';
+    const cur3 = state.store.gameIdsTabTitle || '3. ID Game (ไอดีเกม)';
+
+    const body = el(`
+      <div class="grid" style="gap:14px;">
+        <div class="field">
+          <label style="font-weight:700; font-size:12.5px;">ชื่อหัวข้อแท็บที่ 1 (Tab 1 Title)</label>
+          <input class="input" id="inpTabTitle1" value="${escapeHTML(cur1)}" placeholder="1. Item HayDay" style="padding:10px 14px; font-size:13.5px; border-radius:12px;" />
+        </div>
+        <div class="field">
+          <label style="font-weight:700; font-size:12.5px;">ชื่อหัวข้อแท็บที่ 2 (Tab 2 Title)</label>
+          <input class="input" id="inpTabTitle2" value="${escapeHTML(cur2)}" placeholder="2. วนเหรียญ (Coin Farming)" style="padding:10px 14px; font-size:13.5px; border-radius:12px;" />
+        </div>
+        <div class="field">
+          <label style="font-weight:700; font-size:12.5px;">ชื่อหัวข้อแท็บที่ 3 (Tab 3 Title)</label>
+          <input class="input" id="inpTabTitle3" value="${escapeHTML(cur3)}" placeholder="3. ID Game (ไอดีเกม)" style="padding:10px 14px; font-size:13.5px; border-radius:12px;" />
+        </div>
+      </div>
+    `);
+
+    openModal({
+      title: 'แก้ไขชื่อหัวข้อสินค้าและบริการ (Rename Tabs)',
+      body,
+      width: 480,
+      actions: [
+        {
+          label: 'คืนค่าเริ่มต้น',
+          kind: 'ghost',
+          close: false,
+          onClick: () => {
+            body.querySelector('#inpTabTitle1').value = '1. Item HayDay';
+            body.querySelector('#inpTabTitle2').value = '2. วนเหรียญ (Coin Farming)';
+            body.querySelector('#inpTabTitle3').value = '3. ID Game (ไอดีเกม)';
+          }
+        },
+        {
+          label: 'บันทึกการเปลี่ยนชื่อ',
+          kind: 'primary',
+          onClick: () => {
+            state.store.itemsTabTitle = body.querySelector('#inpTabTitle1')?.value.trim() || '1. Item HayDay';
+            state.store.coinFarmTabTitle = body.querySelector('#inpTabTitle2')?.value.trim() || '2. วนเหรียญ (Coin Farming)';
+            state.store.gameIdsTabTitle = body.querySelector('#inpTabTitle3')?.value.trim() || '3. ID Game (ไอดีเกม)';
+            syncStoreSettingsAcrossDevices();
+            toast('บันทึกชื่อหัวข้อเรียบร้อยแล้ว', 'success');
+            pageRoot.innerHTML = '';
+            PAGES.products(pageRoot);
+          }
+        }
+      ]
+    });
+  }
 
   // --- TAB 1: Item HayDay Management ---
   function renderAdminItemsTab(container) {
@@ -3924,23 +3990,7 @@
           </div>
         `);
         card.querySelector('.btn-cat-add-prod')?.addEventListener('click', () => openAddProductModal(null, c.name));
-        card.querySelector('.btn-cat-edit')?.addEventListener('click', async () => {
-          const newName = prompt('แก้ไขชื่อหมวดหมู่:', c.name);
-          if (!newName || newName.trim() === '' || newName.trim() === c.name) return;
-          const oldName = c.name;
-          c.name = newName.trim();
-          PRODUCTS.forEach(p => { if (p.cat === oldName) p.cat = c.name; });
-          if (supabase) {
-            try {
-              await supabase.from('categories').update({ name: c.name }).eq('name', oldName);
-              await supabase.from('products').update({ cat: c.name }).eq('cat', oldName);
-            } catch(e) {}
-          }
-          persistProducts();
-          try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
-          toast(`เปลี่ยนชื่อหมวดหมู่เป็น "${c.name}" แล้ว`, 'success');
-          renderAdminItemsTab(container);
-        });
+        card.querySelector('.btn-cat-edit')?.addEventListener('click', () => openEditCategoryModal(c));
         card.querySelector('.btn-cat-del')?.addEventListener('click', async () => {
           const hasProds = PRODUCTS.some(p => p.cat === c.name);
           if (hasProds) {
@@ -3965,23 +4015,121 @@
     renderCatCards();
     catSearchInp?.addEventListener('input', renderCatCards);
 
-    // New Category Buttons
-    const handleNewCat = async () => {
-      const name = prompt('กรอกชื่อหมวดหมู่ใหม่:');
-      if (!name || !name.trim()) return;
-      const trimmed = name.trim();
-      if (CATEGORIES.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
-        return toast('มีหมวดหมู่นี้อยู่แล้ว', 'error');
-      }
-      CATEGORIES.push({ name: trimmed, count: 0 });
-      if (supabase) {
-        try { await supabase.from('categories').insert([{ name: trimmed }]); } catch(e) {}
-      }
-      try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
-      toast(`เพิ่มหมวดหมู่ "${trimmed}" เรียบร้อยแล้ว`, 'success');
-      renderAdminItemsTab(container);
-    };
-    wrap.querySelector('#btnHeaderNewCat')?.addEventListener('click', handleNewCat);
+    function openNewCategoryModal() {
+      const body = el(`
+        <div class="grid" style="gap:14px;">
+          <div class="field">
+            <label style="font-weight:700; font-size:12.5px; color:var(--text);">ชื่อหมวดหมู่ใหม่ (Category Name) *</label>
+            <input class="input" id="inpNewCatName" placeholder="เช่น อาหารสัตว์, ขนม, อุปกรณ์ฟาร์ม" style="padding:10px 14px; font-size:13.5px; border-radius:12px;" />
+          </div>
+        </div>
+      `);
+      openModal({
+        title: 'เพิ่มหมวดหมู่ใหม่ (+ New Category)',
+        body,
+        width: 440,
+        actions: [
+          { label: 'ยกเลิก', kind: 'ghost' },
+          {
+            label: 'บันทึกหมวดหมู่',
+            kind: 'primary',
+            onClick: async () => {
+              const name = body.querySelector('#inpNewCatName')?.value.trim();
+              if (!name) return toast('กรุณากรอกชื่อหมวดหมู่', 'error');
+              if (CATEGORIES.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+                return toast('มีหมวดหมู่นี้อยู่แล้ว', 'error');
+              }
+              CATEGORIES.push({ name, count: 0 });
+              if (supabase) {
+                try { await supabase.from('categories').insert([{ name }]); } catch(e) {}
+              }
+              try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+              toast(`เพิ่มหมวดหมู่ "${name}" เรียบร้อยแล้ว`, 'success');
+              renderAdminItemsTab(container);
+            }
+          }
+        ]
+      });
+      setTimeout(() => body.querySelector('#inpNewCatName')?.focus(), 80);
+    }
+
+    function openEditCategoryModal(c) {
+      const body = el(`
+        <div class="grid" style="gap:14px;">
+          <div class="field">
+            <label style="font-weight:700; font-size:12.5px; color:var(--text);">ชื่อหมวดหมู่ (Category Name) *</label>
+            <input class="input" id="inpEditCatName" value="${escapeHTML(c.name)}" style="padding:10px 14px; font-size:13.5px; border-radius:12px;" />
+          </div>
+        </div>
+      `);
+      openModal({
+        title: 'แก้ไขชื่อหมวดหมู่ (Edit Category)',
+        body,
+        width: 440,
+        actions: [
+          { label: 'ยกเลิก', kind: 'ghost' },
+          {
+            label: 'บันทึกการแก้ไข',
+            kind: 'primary',
+            onClick: async () => {
+              const newName = body.querySelector('#inpEditCatName')?.value.trim();
+              if (!newName) return toast('กรุณากรอกชื่อหมวดหมู่', 'error');
+              if (newName === c.name) return;
+              const oldName = c.name;
+              c.name = newName;
+              PRODUCTS.forEach(p => { if (p.cat === oldName) p.cat = c.name; });
+              if (supabase) {
+                try {
+                  await supabase.from('categories').update({ name: c.name }).eq('name', oldName);
+                  await supabase.from('products').update({ cat: c.name }).eq('cat', oldName);
+                } catch(e) {}
+              }
+              persistProducts();
+              try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+              toast(`เปลี่ยนชื่อหมวดหมู่เป็น "${c.name}" แล้ว`, 'success');
+              renderAdminItemsTab(container);
+            }
+          }
+        ]
+      });
+      setTimeout(() => body.querySelector('#inpEditCatName')?.focus(), 80);
+    }
+
+    function openAddLevelBadgeModal() {
+      const body = el(`
+        <div class="grid" style="gap:14px;">
+          <div class="field">
+            <label style="font-weight:700; font-size:12.5px; color:var(--text);">ช่วงเลเวลใหม่ (Level Range) *</label>
+            <input class="input" id="inpNewLevelRange" placeholder="เช่น Lv. 101 – 150 หรือ Lv. 81+" style="padding:10px 14px; font-size:13.5px; border-radius:12px;" />
+          </div>
+        </div>
+      `);
+      openModal({
+        title: 'เพิ่มช่วงเลเวลใหม่ (+ Add Level Range)',
+        body,
+        width: 440,
+        actions: [
+          { label: 'ยกเลิก', kind: 'ghost' },
+          {
+            label: 'เพิ่มช่วงเลเวล',
+            kind: 'primary',
+            onClick: () => {
+              const newLvl = body.querySelector('#inpNewLevelRange')?.value.trim();
+              if (!newLvl) return toast('กรุณากรอกช่วงเลเวล', 'error');
+              if (!state.store.levels) state.store.levels = [];
+              state.store.levels.push(newLvl);
+              syncStoreSettingsAcrossDevices();
+              toast(`เพิ่มช่วงเลเวล "${newLvl}" เรียบร้อยแล้ว`, 'success');
+              renderAdminItemsTab(container);
+            }
+          }
+        ]
+      });
+      setTimeout(() => body.querySelector('#inpNewLevelRange')?.focus(), 80);
+    }
+
+    // New Category & Create Product Buttons
+    wrap.querySelector('#btnHeaderNewCat')?.addEventListener('click', openNewCategoryModal);
     wrap.querySelector('#btnHeaderCreateProd')?.addEventListener('click', () => openAddProductModal());
 
     // Level Badges Listeners
@@ -3995,15 +4143,7 @@
       });
     });
 
-    wrap.querySelector('#btnAddLevelBadge')?.addEventListener('click', () => {
-      const newLvl = prompt('กรอกช่วงเลเวลใหม่ (เช่น Lv. 101 – 150):');
-      if (!newLvl || !newLvl.trim()) return;
-      if (!state.store.levels) state.store.levels = [];
-      state.store.levels.push(newLvl.trim());
-      syncStoreSettingsAcrossDevices();
-      toast(`เพิ่มช่วงเลเวล "${newLvl.trim()}" เรียบร้อยแล้ว`, 'success');
-      renderAdminItemsTab(container);
-    });
+    wrap.querySelector('#btnAddLevelBadge')?.addEventListener('click', openAddLevelBadgeModal);
 
     // Render Price Rules Boxes
     const rulesGrid = wrap.querySelector('#priceRulesGrid');
@@ -4669,7 +4809,6 @@
           <div style="flex:1; display:flex; flex-direction:column;">
             <div class="flex items-center gap-2" style="margin-bottom:4px;">
               <span class="badge" style="background:var(--primary-100); color:var(--accent-text); font-weight:800; font-size:11px;">${escapeHTML(acc.code)}</span>
-              ${acc.badge ? `<span class="badge" style="background:var(--primary-50); font-size:10.5px;">${escapeHTML(acc.badge)}</span>` : ''}
               <span style="font-size:11px; color:var(--muted); margin-left:auto;">${images.length} รูป</span>
             </div>
 
@@ -4859,7 +4998,7 @@
           </div>
         </div>
 
-        <div class="grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+        <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
           <div class="field" style="margin:0;">
             <label style="font-weight:700; font-size:12px;">ราคาขาย (${getCurrencySymbol()}) *</label>
             <input type="number" step="1" class="input" id="gaPrice" placeholder="เช่น 1290" value="${existingAcc ? existingAcc.price : 990}" style="font-weight:800;" />
@@ -4871,10 +5010,6 @@
               <option value="reserved" ${existingAcc?.status === 'reserved' ? 'selected' : ''}>ติดจอง (Reserved)</option>
               <option value="sold" ${existingAcc?.status === 'sold' ? 'selected' : ''}>ขายแล้ว (Sold Out)</option>
             </select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label style="font-weight:700; font-size:12px;">ป้ายกำกับ (Badge)</label>
-            <input class="input" id="gaBadge" placeholder="เช่น Hot, VIP, แนะนำ" value="${existingAcc?.badge ? escapeHTML(existingAcc.badge) : 'Hot Item'}" style="font-size:12px;" />
           </div>
         </div>
 
@@ -4969,7 +5104,6 @@
             const title = body.querySelector('#gaTitle')?.value.trim() || 'ไอดีเกม HayDay';
             const price = Number(body.querySelector('#gaPrice')?.value || 990);
             const status = body.querySelector('#gaStatus')?.value || 'available';
-            const badge = body.querySelector('#gaBadge')?.value.trim() || 'Hot Item';
             const details = body.querySelector('#gaDetails')?.value.trim() || '';
 
             if (imagesList.length === 0) {
@@ -4982,7 +5116,6 @@
               existingAcc.title = title;
               existingAcc.price = price;
               existingAcc.status = status;
-              existingAcc.badge = badge;
               existingAcc.details = details;
               existingAcc.images = imagesList;
               toast(`อัปเดตไอดี "${code}" แล้ว`, 'success');
@@ -4993,7 +5126,6 @@
                 title,
                 price,
                 status,
-                badge,
                 details,
                 images: imagesList
               };
@@ -5040,7 +5172,6 @@
         <div style="text-align:left;">
           <div class="flex items-center gap-2" style="margin-bottom:4px;">
             <span class="badge" style="background:var(--primary-100); color:var(--accent-text); font-weight:800; font-size:12px;">${escapeHTML(acc.code)}</span>
-            ${acc.badge ? `<span class="badge" style="background:var(--primary-50); font-size:11px; font-weight:700;">${escapeHTML(acc.badge)}</span>` : ''}
           </div>
           <h3 style="font-size:17px; font-weight:800; color:var(--text); margin:4px 0 8px;">${escapeHTML(acc.title)}</h3>
           <div style="font-size:22px; font-weight:900; color:var(--accent-text); margin-bottom:12px;">${money(acc.price)}</div>
@@ -9072,7 +9203,6 @@
                         <div style="flex:1; display:flex; flex-direction:column;">
                           <div class="flex items-center gap-2" style="margin-bottom:4px;">
                             <span class="badge" style="background:var(--primary-100); color:var(--accent-text); font-weight:800; font-size:11px;">${escapeHTML(acc.code)}</span>
-                            ${acc.badge ? `<span class="badge" style="background:var(--primary-50); font-size:10.5px;">${escapeHTML(acc.badge)}</span>` : ''}
                             <span style="font-size:11px; color:var(--muted); margin-left:auto;">${images.length} รูป</span>
                           </div>
 
@@ -9232,19 +9362,19 @@
                 ${isItemsActive ? `
                   <button type="button" class="hub-tab-btn ${state.storeProductSubTab === 'items' ? 'active' : ''}" data-sub="items">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-                    <span>Item HayDay</span>
+                    <span>${escapeHTML(state.store.itemsTabTitle ? state.store.itemsTabTitle.replace(/^\d+\.\s*/, '') : 'Item HayDay')}</span>
                   </button>
                 ` : ''}
                 ${isCoinFarmActive ? `
                   <button type="button" class="hub-tab-btn ${state.storeProductSubTab === 'coin_farm' ? 'active' : ''}" data-sub="coin_farm">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9h-4a1.5 1.5 0 0 0 0 3h3a1.5 1.5 0 0 1 0 3h-4"/><path d="M12 7v10"/></svg>
-                    <span>วนเหรียญ (Coin Farming)</span>
+                    <span>${escapeHTML(state.store.coinFarmTabTitle ? state.store.coinFarmTabTitle.replace(/^\d+\.\s*/, '') : 'วนเหรียญ (Coin Farming)')}</span>
                   </button>
                 ` : ''}
                 ${isGameIdsActive ? `
                   <button type="button" class="hub-tab-btn ${state.storeProductSubTab === 'game_ids' ? 'active' : ''}" data-sub="game_ids">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="5" rx="3"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg>
-                    <span>ID Game (ไอดีเกม)</span>
+                    <span>${escapeHTML(state.store.gameIdsTabTitle ? state.store.gameIdsTabTitle.replace(/^\d+\.\s*/, '') : 'ID Game (ไอดีเกม)')}</span>
                   </button>
                 ` : ''}
               </div>
@@ -9599,7 +9729,6 @@
                     <div style="flex:1; display:flex; flex-direction:column;">
                       <div class="flex items-center gap-2" style="margin-bottom:4px;">
                         <span class="badge" style="background:var(--primary-100); color:var(--accent-text); font-weight:800; font-size:11px;">${escapeHTML(acc.code)}</span>
-                        ${acc.badge ? `<span class="badge" style="background:var(--primary-50); font-size:10.5px;">${escapeHTML(acc.badge)}</span>` : ''}
                         <span style="font-size:11px; color:var(--muted); margin-left:auto;">${images.length} รูป</span>
                       </div>
 

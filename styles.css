@@ -1998,16 +1998,17 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
 }
 
 .custom-radio.checked {
-  border-color: var(--accent-text);
-  background: var(--accent-text);
-  color: #fff;
+  border-color: var(--primary-400, #F4A7C1);
+  background: var(--primary-300, #F8BFD4);
+  color: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(248, 191, 212, 0.4);
 }
 
 .custom-radio.checked:after {
   content: "✓";
   font-size: 11px;
   font-weight: 900;
-  color: #fff;
+  color: #FFFFFF;
   line-height: 1;
 }
 
