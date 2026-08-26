@@ -32,7 +32,15 @@
   // ============================================================
   // Supabase Storage & Optimized Image Upload Helper
   // ============================================================
-  const DEFAULT_PRODUCT_IMG = 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80';
+  const DEFAULT_PRODUCT_IMG = '';
+  const PLACEHOLDER_IMG_SVG = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.65;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+
+  function renderMediaHtml(imgUrl, altText = 'Media', customStyle = '') {
+    if (imgUrl && String(imgUrl).trim().length > 0) {
+      return `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(altText)}" style="width:100%; height:100%; object-fit:cover; display:block;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';" /><div style="display:none; width:100%; height:100%; place-items:center; background:var(--primary-50); color:var(--accent-text); border-radius:inherit; ${customStyle}">${PLACEHOLDER_IMG_SVG}</div>`;
+    }
+    return `<div style="display:grid; width:100%; height:100%; place-items:center; background:var(--primary-50); color:var(--accent-text); border-radius:inherit; ${customStyle}">${PLACEHOLDER_IMG_SVG}</div>`;
+  }
 
   async function uploadProductImage(file) {
     if (!file || !file.type || !file.type.startsWith('image/')) {
@@ -227,9 +235,9 @@
   function persistPromotions() { /* no-op: Supabase is the single source of truth */ }
 
   const DEFAULT_BANNERS = [
-    { id: 1, title: 'Special Promo', sub: 'Welcome to our store', tag: 'Welcome', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80' },
-    { id: 2, title: 'Handmade Sweets', sub: 'Fresh daily from the oven', tag: 'Fresh', image: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?w=800&auto=format&fit=crop&q=80' },
-    { id: 3, title: 'HayDay Coins & Items', sub: 'Fast & Secure Delivery', tag: 'Popular', image: 'https://images.unsplash.com/photo-1535141192574-5d4897c13136?w=800&auto=format&fit=crop&q=80' }
+    { id: 1, title: '', sub: '', tag: '', image: '' },
+    { id: 2, title: '', sub: '', tag: '', image: '' },
+    { id: 3, title: '', sub: '', tag: '', image: '' }
   ];
 
   let BANNERS = JSON.parse(JSON.stringify(DEFAULT_BANNERS));
@@ -239,10 +247,7 @@
     if (savedB) {
       const parsed = JSON.parse(savedB);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAnyImage = parsed.some(b => b && b.image && b.image.trim());
-        if (hasAnyImage) {
-          BANNERS = parsed;
-        }
+        BANNERS = parsed;
       }
     }
   } catch (e) {}
@@ -445,13 +450,9 @@
         title: 'ไอดี HayDay Lv.85 ยุ้งฉาง 3500+ เหรียญ 5 ล้าน',
         price: 1290,
         status: 'available',
-        images: [
-          'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&auto=format&fit=crop&q=80',
-          'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&auto=format&fit=crop&q=80',
-          'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80'
-        ],
+        images: [],
         details: 'เลเวล 85 | ยุ้งฉาง 3,500 | ไซโล 3,200 | เหรียญ 5,400,000 | เพชร 450 | ปลดล็อกครบทุกโรงงาน สะอาดปลอดภัย 100%',
-        badge: 'Hot Item'
+        badge: ''
       }
     ],
     priceRules: [
@@ -2596,12 +2597,11 @@
                 `;
               }
               return lowItems.slice(0, 4).map(p => {
-                const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
                 const statusInfo = getStockStatusInfo(p.stock);
                 return `
                   <div class="flex items-center gap-3" style="padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:var(--card);">
                     <div style="width:38px; height:38px; border-radius:10px; overflow:hidden; background:var(--primary-50); border:1px solid var(--border); flex:none;">
-                      <img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                      ${renderMediaHtml(p.image, p.name)}
                     </div>
                     <div style="flex:1; min-width:0;">
                       <div style="font-weight:700; font-size:13.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(p.name)}</div>
@@ -3386,7 +3386,7 @@
         id: p.id,
         name: p.name,
         cat: p.cat || 'Bakery',
-        image: p.image || DEFAULT_PRODUCT_IMG,
+        image: p.image || '',
         price: Number(p.price || 0),
         qty: 1
       }));
@@ -3401,7 +3401,6 @@
             <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
             <tbody>
               ${itemsList.map((it) => {
-                const imgUrl = it.image || DEFAULT_PRODUCT_IMG;
                 const unitPrice = Number(it.price || 0);
                 const quantity = Number(it.qty || 1);
                 const itemSub = unitPrice * quantity;
@@ -3410,7 +3409,7 @@
                   <td>
                     <div class="flex items-center gap-3">
                       <div style="width:40px; height:40px; border-radius:10px; overflow:hidden; background:var(--primary-50); border:1px solid var(--border); flex:none;">
-                        <img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(it.name || 'Product')}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                        ${renderMediaHtml(it.image, it.name || 'Product')}
                       </div>
                       <div>
                         <div style="font-weight:700; font-size:13.5px; color:var(--text);">${escapeHTML(it.name || 'Product')}</div>
@@ -3620,7 +3619,7 @@
           price: Number(acc.price || 0),
           stock: acc.status === 'available' ? 1 : 0,
           desc: acc.details || '',
-          image: (acc.images && acc.images[0]) || DEFAULT_PRODUCT_IMG,
+          image: (acc.images && acc.images[0]) || '',
           account: acc
         };
       }
@@ -3646,7 +3645,7 @@
         price: effectivePrice,
         stock: Number(p.stock !== undefined ? p.stock : 0),
         desc: p.flavor || p.description || '',
-        image: p.image || DEFAULT_PRODUCT_IMG,
+        image: p.image || '',
         level: p.level || 1,
         rule: rule
       };
@@ -4557,10 +4556,8 @@
       pageItems.forEach(p => {
         const stockCls = p.stock === 0 ? 'out' : p.stock < 10 ? 'low' : '';
         const qty = state.selected[p.id] || 0;
-        const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
-        const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
         const step = getProductClickStep(p);
-        const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
+        const mediaHtml = renderMediaHtml(p.image, p.name);
         const tile = el(`
           <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1}, สเต็ปคลิกละ ${step} ชิ้น)">
             ${mediaHtml}
@@ -4973,7 +4970,7 @@
     }
 
     accs.forEach((acc, idx) => {
-      const images = (acc.images && acc.images.length > 0) ? acc.images : [DEFAULT_PRODUCT_IMG];
+      const images = (acc.images && acc.images.length > 0) ? acc.images.filter(Boolean) : [];
       let currentSlide = 0;
 
       const card = el(`
@@ -4984,16 +4981,24 @@
 
           <div class="game-id-gallery-wrap">
             <div class="game-id-gallery-track" id="track_${acc.id}">
-              ${images.map((img, i) => `
+              ${images.length > 0 ? images.map((img, i) => `
                 <div class="game-id-gallery-slide">
-                  <img src="${escapeHTML(img)}" alt="${escapeHTML(acc.title)} Photo ${i+1}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                  ${renderMediaHtml(img, `${acc.title} Photo ${i+1}`)}
                 </div>
-              `).join('')}
+              `).join('') : `
+                <div class="game-id-gallery-slide">
+                  ${renderMediaHtml('', acc.title)}
+                </div>
+              `}
             </div>
 
             ${images.length > 1 ? `
-              <button type="button" class="game-id-gallery-btn prev btn-g-prev">‹</button>
-              <button type="button" class="game-id-gallery-btn next btn-g-next">›</button>
+              <button type="button" class="game-id-gallery-btn prev btn-g-prev" aria-label="Previous">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <button type="button" class="game-id-gallery-btn next btn-g-next" aria-label="Next">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
               <div class="game-id-dots">
                 ${images.map((_, i) => `<div class="game-id-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
               </div>
@@ -5224,7 +5229,7 @@
       imagesList.forEach((url, idx) => {
         const thumb = el(`
           <div class="admin-photo-thumb-wrap">
-            <img src="${escapeHTML(url)}" alt="Photo ${idx + 1}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+            ${renderMediaHtml(url, `Photo ${idx + 1}`)}
             <button type="button" class="admin-photo-del-btn" data-idx="${idx}" title="ลบรูปนี้">✕</button>
           </div>
         `);
@@ -5300,10 +5305,6 @@
             const status = body.querySelector('#gaStatus')?.value || 'available';
             const details = body.querySelector('#gaDetails')?.value.trim() || '';
 
-            if (imagesList.length === 0) {
-              imagesList.push(DEFAULT_PRODUCT_IMG);
-            }
-
             state.store.gameAccounts = state.store.gameAccounts || [];
             if (isEdit) {
               existingAcc.code = code;
@@ -5336,18 +5337,22 @@
 
   function openGameAccountQuickViewModal(acc) {
     let currentSlide = 0;
-    const images = (acc.images && acc.images.length > 0) ? acc.images : [DEFAULT_PRODUCT_IMG];
+    const images = (acc.images && acc.images.length > 0) ? acc.images.filter(Boolean) : [];
 
     const body = el(`
       <div>
         <!-- 1:1 Image Slider in Quick View -->
         <div class="game-id-gallery-wrap" style="max-width:380px; margin:0 auto 16px;">
           <div class="game-id-gallery-track" id="qvGalleryTrack">
-            ${images.map((img, i) => `
+            ${images.length > 0 ? images.map((img, i) => `
               <div class="game-id-gallery-slide">
-                <img src="${escapeHTML(img)}" alt="${escapeHTML(acc.title)} Photo ${i+1}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                ${renderMediaHtml(img, `${acc.title} Photo ${i+1}`)}
               </div>
-            `).join('')}
+            `).join('') : `
+              <div class="game-id-gallery-slide">
+                ${renderMediaHtml('', acc.title)}
+              </div>
+            `}
           </div>
 
           ${images.length > 1 ? `
@@ -5556,7 +5561,7 @@
         <!-- Photo Upload Box (Mandatory Photo, No Emojis) -->
         <div style="background:var(--primary-50); padding:16px; border-radius:16px; border:1.5px solid var(--border); text-align:center;">
           <div style="position:relative; width:130px; height:130px; border-radius:16px; border:2px dashed var(--border); background:var(--card); display:grid; place-items:center; overflow:hidden; margin:0 auto 10px; box-shadow:var(--shadow-soft);">
-            <img id="prodImgPreview" src="${currentImage || DEFAULT_PRODUCT_IMG}" style="width:100%; height:100%; object-fit:cover; display:${currentImage ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('prodNoPhotoPrompt').style.display='flex';" />
+            <img id="prodImgPreview" src="${escapeHTML(currentImage)}" style="width:100%; height:100%; object-fit:cover; display:${currentImage ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('prodNoPhotoPrompt').style.display='flex';" />
             <div id="prodNoPhotoPrompt" style="display:${currentImage ? 'none' : 'flex'}; flex-direction:column; align-items:center; justify-content:center; padding:10px; color:var(--muted); font-size:12px; font-weight:700;">
               <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--accent-text); margin-bottom:4px;"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
               <span>ยังไม่มีรูปภาพ</span>
@@ -5904,7 +5909,7 @@
                 <tr data-id="${p.id}">
                   <td>
                     <div style="width:42px; height:42px; border-radius:10px; overflow:hidden; background:var(--primary-50); display:grid; place-items:center; border:1px solid var(--border);">
-                      <img src="${escapeHTML(p.image || DEFAULT_PRODUCT_IMG)}" alt="${escapeHTML(p.name)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                      ${renderMediaHtml(p.image, p.name)}
                     </div>
                   </td>
                   <td>
@@ -6090,7 +6095,7 @@
                   <td>
                     <div class="flex items-center gap-3">
                       <div style="width:38px; height:38px; border-radius:8px; overflow:hidden; background:var(--primary-50); border:1px solid var(--border); flex:none;">
-                        <img src="${escapeHTML(s.image || DEFAULT_PRODUCT_IMG)}" alt="${escapeHTML(s.name)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                        ${renderMediaHtml(s.image, s.name)}
                       </div>
                       <div>
                         <strong style="font-size:13.5px;">${escapeHTML(s.name)}</strong>
@@ -9215,8 +9220,8 @@
         });
 
         // 2. Carousel Container (Dynamic Slides, 1:1 Aspect Ratio at Top)
-        const slidesToRender = (Array.isArray(BANNERS) && BANNERS.length > 0 && BANNERS.some(b => b && b.image))
-          ? BANNERS.filter(b => b && b.image)
+        const slidesToRender = (Array.isArray(BANNERS) && BANNERS.length > 0)
+          ? BANNERS
           : DEFAULT_BANNERS;
 
         const carouselEl = el(`
@@ -9232,7 +9237,10 @@
               <div class="carousel-track" id="carouselTrack">
                 ${slidesToRender.map((b, idx) => `
                   <div class="carousel-slide" data-idx="${idx}">
-                    <img src="${escapeHTML(b.image || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80')}" alt="Slide ${idx + 1}" style="width:100%; height:100%; object-fit:cover; display:block; user-select:none;" onerror="this.src='https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80';" />
+                    ${b.image
+                      ? `<img src="${escapeHTML(b.image)}" alt="Slide ${idx + 1}" style="width:100%; height:100%; object-fit:cover; display:block; user-select:none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" /><div style="display:none; width:100%; height:100%; place-items:center; background:var(--primary-50); color:var(--accent-text);"><div style="text-align:center; padding:20px;"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 8px; display:block; opacity:0.6;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><div style="font-size:13.5px; font-weight:700;">${escapeHTML(b.title || `Slide #${idx + 1}`)}</div></div></div>`
+                      : `<div style="width:100%; height:100%; display:grid; place-items:center; background:var(--primary-50); color:var(--accent-text);"><div style="text-align:center; padding:20px;"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 8px; display:block; opacity:0.6;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><div style="font-size:13.5px; font-weight:700;">${escapeHTML(b.title || `Slide #${idx + 1}`)}</div>${b.sub ? `<div style="font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(b.sub)}</div>` : ''}</div></div>`
+                    }
                   </div>
                 `).join('')}
               </div>
@@ -9443,12 +9451,11 @@
                 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:14px;" id="homeProductCardsGrid">
                   ${PRODUCTS.slice(0, 12).map(p => {
                     const qty = state.selected[p.id] || 0;
-                    const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
                     const stockCls = p.stock === 0 ? 'out' : p.stock < 10 ? 'low' : '';
                     return `
                       <div class="card home-product-card ${stockCls}" data-id="${p.id}" style="padding:12px; border:1.5px solid var(--border); border-radius:16px; background:var(--card); display:flex; flex-direction:column; position:relative; cursor:pointer; margin:0;">
                         <div style="position:relative; width:100%; aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:var(--primary-50); border:1px solid var(--border); margin-bottom:10px;">
-                          <img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                          ${renderMediaHtml(p.image, p.name)}
                           ${qty > 0 ? `<span class="qty-badge" style="display:flex; position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; background:var(--primary-600); color:#fff; font-size:12px; font-weight:800; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.3);">${qty}</span>` : ''}
                           ${p.stock === 0 ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.55); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:800;">สินค้าหมด</div>` : ''}
                         </div>
@@ -9517,7 +9524,7 @@
               ${accs.length > 0 ? `
                 <div class="game-id-grid">
                   ${accs.map(acc => {
-                    const images = (acc.images && acc.images.length > 0) ? acc.images : [DEFAULT_PRODUCT_IMG];
+                    const images = (acc.images && acc.images.length > 0) ? acc.images.filter(Boolean) : [];
                     const cartKey = 'game_acc_' + acc.id;
                     const inCart = !!state.selected[cartKey];
                     return `
@@ -9528,11 +9535,15 @@
 
                         <div class="game-id-gallery-wrap">
                           <div class="game-id-gallery-track" id="h_track_${acc.id}">
-                            ${images.map((img, i) => `
+                            ${images.length > 0 ? images.map((img, i) => `
                               <div class="game-id-gallery-slide">
-                                <img src="${escapeHTML(img)}" alt="${escapeHTML(acc.title)} Photo ${i+1}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                                ${renderMediaHtml(img, `${acc.title} Photo ${i+1}`)}
                               </div>
-                            `).join('')}
+                            `).join('') : `
+                              <div class="game-id-gallery-slide">
+                                ${renderMediaHtml('', acc.title)}
+                              </div>
+                            `}
                           </div>
 
                           ${images.length > 1 ? `
@@ -9585,7 +9596,7 @@
             const accId = card.dataset.accid;
             const acc = accs.find(a => a.id === accId);
             if (!acc) return;
-            const images = (acc.images && acc.images.length > 0) ? acc.images : [DEFAULT_PRODUCT_IMG];
+            const images = (acc.images && acc.images.length > 0) ? acc.images.filter(Boolean) : [];
             let currentSlide = 0;
 
             if (images.length > 1) {
@@ -9888,8 +9899,7 @@
                 const qty = state.selected[p.id] || 0;
                 const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
                 const step = getProductClickStep(p);
-                const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
-                const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
+                const mediaHtml = renderMediaHtml(p.image, p.name);
                 const tile = el(`
                   <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1}, สเต็ปคลิกละ ${step} ชิ้น)">
                     ${mediaHtml}
@@ -10045,7 +10055,7 @@
             const gridEl = gaBox.querySelector('#storeGameIdsGrid');
             if (gridEl) {
               accs.forEach(acc => {
-                const images = (acc.images && acc.images.length > 0) ? acc.images : [DEFAULT_PRODUCT_IMG];
+                const images = (acc.images && acc.images.length > 0) ? acc.images.filter(Boolean) : [];
                 const cartKey = 'game_acc_' + acc.id;
                 const inCart = !!state.selected[cartKey];
                 let currentSlide = 0;
@@ -10058,11 +10068,15 @@
 
                     <div class="game-id-gallery-wrap">
                       <div class="game-id-gallery-track" id="p_track_${acc.id}">
-                        ${images.map((img, i) => `
+                        ${images.length > 0 ? images.map((img, i) => `
                           <div class="game-id-gallery-slide">
-                            <img src="${escapeHTML(img)}" alt="${escapeHTML(acc.title)} Photo ${i+1}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />
+                            ${renderMediaHtml(img, `${acc.title} Photo ${i+1}`)}
                           </div>
-                        `).join('')}
+                        `).join('') : `
+                          <div class="game-id-gallery-slide">
+                            ${renderMediaHtml('', acc.title)}
+                          </div>
+                        `}
                       </div>
 
                       ${images.length > 1 ? `
