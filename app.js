@@ -2995,6 +2995,112 @@
     });
   }
 
+  // Universal Cross-Platform File Downloader (iOS, iPadOS, Android, Windows, Mac)
+  async function downloadFileFromUrl(url, filename = 'download.png') {
+    if (!url) {
+      toast('ไม่มีไฟล์สำหรับดาวน์โหลด', 'error');
+      return;
+    }
+    try {
+      if (url.startsWith('data:')) {
+        const arr = url.split(',');
+        const mime = (arr[0].match(/:(.*?);/) || [])[1] || 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+        toast('บันทึกรูปภาพเรียบร้อย', 'success');
+        return;
+      }
+
+      toast('กำลังเตรียมดาวน์โหลดรูปภาพ...', 'info');
+      try {
+        const response = await fetch(url, { mode: 'cors' });
+        if (!response.ok) throw new Error('Fetch failed');
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+        toast('ดาวน์โหลดรูปภาพสำเร็จ', 'success');
+      } catch (fetchErr) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast('เปิดรูปภาพเพื่อบันทึกเรียบร้อย', 'success');
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      window.open(url, '_blank');
+    }
+  }
+
+  // Universal Crystal Clear HD Receipt Image Generator & Downloader
+  async function downloadReceiptAsImage(receiptEl, orderId) {
+    if (!receiptEl) return;
+    toast('กำลังสร้างรูปภาพใบเสร็จ...', 'info');
+    const filename = `Receipt-${orderId || Date.now()}.png`;
+
+    try {
+      if (window.html2canvas) {
+        const canvas = await window.html2canvas(receiptEl, {
+          scale: 2.5,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#FFFFFF',
+          ignoreElements: (element) => {
+            return element.id === 'btnTrackOrder' || element.id === 'dlReceipt';
+          }
+        });
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        await downloadFileFromUrl(dataUrl, filename);
+        return;
+      }
+    } catch (e) {
+      console.warn('html2canvas capture notice, fallback:', e);
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 440;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 440, 720);
+      ctx.fillStyle = '#333333';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(state.store.receiptStoreName || state.store.name || 'BNC HayMate', 220, 60);
+      ctx.font = '13px sans-serif';
+      ctx.fillStyle = '#777777';
+      ctx.fillText(`Receipt #${orderId}`, 220, 85);
+      const dataUrl = canvas.toDataURL('image/png');
+      await downloadFileFromUrl(dataUrl, filename);
+    } catch (err) {
+      toast('ไม่สามารถสร้างรูปภาพใบเสร็จได้', 'error');
+    }
+  }
+
   // Universal Cross-Browser Image Compression Helper
   function compressImageToDataUrl(file, maxWidth = 900, maxHeight = 1200, quality = 0.82) {
     return new Promise((resolve, reject) => {
@@ -3302,9 +3408,10 @@
               <img src="${slipImgSrc}" alt="Payment Slip" style="max-height:260px; max-width:100%; border-radius:8px; object-fit:contain; margin:0 auto; display:block; box-shadow:var(--shadow-soft);" />
             </div>
             
-            <a href="${slipImgSrc}" download="Payment-Slip-${o.id}.png" class="btn btn-primary btn-block mt-3" style="text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;">
-              ดาวน์โหลดสลิป (Download Slip)
-            </a>
+            <button type="button" id="btnDownloadSlipFile" class="btn btn-primary btn-block mt-3" style="text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; cursor:pointer;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <span>ดาวน์โหลดรูปภาพสลิป (Download Slip)</span>
+            </button>
           ` : `
             <div style="text-align:center; padding:24px 16px; color:var(--muted); background:var(--primary-50); border:1px dashed var(--border); border-radius:12px; margin-top:8px;">
               <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" style="margin:0 auto 6px; display:block; color:var(--muted);"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
@@ -3315,6 +3422,10 @@
         </div>
       </div>
     `));
+
+    grid.querySelector('#btnDownloadSlipFile')?.addEventListener('click', () => {
+      downloadFileFromUrl(slipImgSrc, `Payment-Slip-${o.id}.png`);
+    });
 
     grid.querySelectorAll('.btn-copy-farmtag').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -3407,7 +3518,7 @@
               price: Number(tier.price || 0),
               stock: 9999,
               desc: tier.desc || box.title,
-              image: DEFAULT_PRODUCT_IMG
+              image: ''
             };
           }
         }
@@ -5286,8 +5397,8 @@
       body: el(`
         <div class="grid" style="gap:14px;">
           <div style="background:var(--primary-50); padding:12px 14px; border-radius:14px; border:1px solid var(--border); display:flex; align-items:center; gap:12px;">
-            <div style="width:48px; height:48px; border-radius:10px; overflow:hidden; background:var(--card); display:grid; place-items:center; border:1px solid var(--border); flex:none;">
-              ${prod.image ? `<img src="${escapeHTML(prod.image)}" alt="${escapeHTML(prod.name)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><span style="display:none; font-size:24px;">${prod.emoji || '🍰'}</span>` : `<span style="font-size:24px;">${prod.emoji || '🍰'}</span>`}
+            <div style="width:48px; height:48px; border-radius:10px; overflow:hidden; background:var(--card); display:grid; place-items:center; border:1px solid var(--border); flex:none; color:var(--accent-text);">
+              ${prod.image ? `<img src="${escapeHTML(prod.image)}" alt="${escapeHTML(prod.name)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';" /><div style="display:none; width:100%; height:100%; place-items:center;">${ICONS.products}</div>` : `<div style="display:grid; width:100%; height:100%; place-items:center;">${ICONS.products}</div>`}
             </div>
             <div style="flex:1; min-width:0;">
               <div style="font-weight:800; font-size:14.5px; color:var(--text);">${escapeHTML(prod.name)}</div>
@@ -6964,13 +7075,41 @@
     let currentReceiptFooterType = state.store.receiptFooterType === 'qr' ? 'image' : (state.store.receiptFooterType || 'image');
     let currentReceiptFooterImage = state.store.receiptFooterImage || '';
     let currentQrPaymentImage = state.store.qr_image_url || '';
-    let currentHighlights = JSON.parse(JSON.stringify(state.store.highlights || DEFAULT_STORE_CONFIG.highlights));
+    let currentHighlights = JSON.parse(JSON.stringify(state.store.highlights || DEFAULT_STORE_CONFIG.highlights || []));
+    while (currentHighlights.length < 4) {
+      currentHighlights.push({ iconType: 'image', icon: '', image: '', title: `จุดเด่น #${currentHighlights.length + 1}`, sub: '' });
+    }
     let currentPaymentAccounts = JSON.parse(JSON.stringify(state.store.payment_accounts || DEFAULT_STORE_CONFIG.payment_accounts));
 
     const formWrap = el(`
       <div style="display:flex; flex-direction:column; gap:20px;">
         
-        <!-- SECTION 1: Sidebar Brand Logo & Storefront Header -->
+        <!-- SECTION 1: Top Contact & Support Header Card -->
+        <div class="card">
+          <div class="card-title">Top Contact &amp; Support Header Card (กล่องติดต่อสอบถาม &amp; แจ้งรหัสออเดอร์ บนหน้าแรก)</div>
+          <div class="card-sub">ปรับแต่งหัวข้อ, ปุ่มลิงก์ Line OA, Facebook, และคำบรรยายเวลาทำการที่แสดงด้านบนสุดของหน้า Home</div>
+          
+          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-top:12px;">
+            <div class="field">
+              <label>หัวข้อกล่องติดต่อ (Contact Box Title)</label>
+              <input class="input" id="setHomeContactTitle" value="${escapeHTML(state.store.homeContactTitle || 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์')}" placeholder="เช่น ติดต่อสอบถาม & แจ้งรหัสออเดอร์" />
+            </div>
+            <div class="field">
+              <label>คำบรรยาย / เวลาทำการ (Subtitle &amp; Schedule)</label>
+              <input class="input" id="setHomeContactSub" value="${escapeHTML(state.store.homeContactSub || 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.')}" placeholder="เช่น ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น." />
+            </div>
+            <div class="field">
+              <label>ลิงก์ปุ่ม Line OA (Line OA URL)</label>
+              <input class="input" id="setHomeContactLineUrl" value="${escapeHTML(state.store.homeContactLineUrl || state.store.lineUrl || '')}" placeholder="เช่น https://line.me/ti/p/~@your_id" />
+            </div>
+            <div class="field">
+              <label>ลิงก์ปุ่ม Facebook (Facebook URL)</label>
+              <input class="input" id="setHomeContactFbUrl" value="${escapeHTML(state.store.homeContactFbUrl || state.store.facebookUrl || '')}" placeholder="เช่น https://facebook.com/your_page" />
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: Sidebar Brand Logo & Storefront Header -->
         <div class="card">
           <div class="card-title">Sidebar Logo &amp; Storefront Header (สี่เหลี่ยมโลโก้ร้านมุมซ้ายบนแถบเมนู &amp; หัวข้อหน้าร้าน)</div>
           <div class="card-sub">ปรับแต่งสี่เหลี่ยมโลโก้ร้านที่มุมซ้ายบนของแถบเมนู Sidebar (เลือกระหว่าง อัปโหลดรูปภาพ หรือ ตัวอักษร/อิโมจิ)</div>
@@ -7702,6 +7841,8 @@
       });
     };
 
+    renderHighlightsSettingsList();
+
     // Brand Logo Handlers
     const btnBrandLogoTypeEmoji = formWrap.querySelector('#btnBrandLogoTypeEmoji');
     const btnBrandLogoTypeImage = formWrap.querySelector('#btnBrandLogoTypeImage');
@@ -8264,6 +8405,14 @@
 
     // Bind save actions
     const doSave = () => {
+      // Save Top Contact Header Card Settings
+      state.store.homeContactTitle = formWrap.querySelector('#setHomeContactTitle')?.value.trim() || 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์';
+      state.store.homeContactSub = formWrap.querySelector('#setHomeContactSub')?.value.trim() || 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.';
+      state.store.homeContactLineUrl = formWrap.querySelector('#setHomeContactLineUrl')?.value.trim() || '';
+      state.store.lineUrl = state.store.homeContactLineUrl;
+      state.store.homeContactFbUrl = formWrap.querySelector('#setHomeContactFbUrl')?.value.trim() || '';
+      state.store.facebookUrl = state.store.homeContactFbUrl;
+
       state.store.brandLogoType = currentBrandLogoType;
       state.store.brandLogoImage = (currentBrandLogoImage && !currentBrandLogoImage.startsWith('(Uploaded')) ? currentBrandLogoImage : (formWrap.querySelector('#setBrandLogoImgUrl')?.value && formWrap.querySelector('#setBrandLogoImgUrl').value !== '(Uploaded Photo)' ? formWrap.querySelector('#setBrandLogoImgUrl').value : currentBrandLogoImage || '');
       state.store.brandLogoText = formWrap.querySelector('#setBrandLogoText')?.value.trim() || 'B';
@@ -8833,7 +8982,11 @@
       const isGameIdsActive = state.store.enableGameIds !== false;
 
       if (key === 'home') {
-        // 1. Top Contact Header Card (Image 1)
+        const contactTitle = state.store.homeContactTitle || 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์';
+        const contactSub = state.store.homeContactSub || 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.';
+        const contactLine = state.store.homeContactLineUrl || state.store.lineUrl || '';
+        const contactFb = state.store.homeContactFbUrl || state.store.facebookUrl || '';
+
         const topContactCard = el(`
           <div class="home-top-contact-card">
             <div style="display:flex; align-items:center; gap:14px; flex:1;">
@@ -8841,7 +8994,7 @@
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="var(--accent-text)" style="opacity:0.9;"><path d="M12 2a3 3 0 0 0-3 3c0 .8.3 1.5.8 2.1A5.5 5.5 0 0 0 4 12.5C4 15.5 6.5 18 9.5 18c.8 0 1.5-.2 2.1-.5.4.3.9.5 1.4.5a3 3 0 0 0 3-3c0-.8-.3-1.5-.8-2.1A5.5 5.5 0 0 0 20 7.5C20 4.5 17.5 2 14.5 2c-.8 0-1.5.2-2.1.5-.4-.3-.9-.5-1.4-.5Z"/><circle cx="12" cy="10" r="2" fill="#fff"/></svg>
               </div>
               <div>
-                <div style="font-size:13.5px; font-weight:800; color:var(--text); margin-bottom:6px;">ติดต่อสอบถาม &amp; แจ้งรหัสออเดอร์</div>
+                <div style="font-size:13.5px; font-weight:800; color:var(--text); margin-bottom:6px;">${escapeHTML(contactTitle)}</div>
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <button type="button" class="home-contact-pill-btn" id="btnContactLine" style="background:#06C75515; color:#06C755; border-color:#06C75540;">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.019 9.572.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975 1.766-1.924 2.564-3.882 2.564-5.932"/></svg>
@@ -8852,7 +9005,7 @@
                     <span>Facebook</span>
                   </button>
                 </div>
-                <div style="font-size:11.5px; color:var(--muted); margin-top:6px;">ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.</div>
+                <div style="font-size:11.5px; color:var(--muted); margin-top:6px;">${escapeHTML(contactSub)}</div>
               </div>
             </div>
           </div>
@@ -8860,11 +9013,11 @@
         view.appendChild(topContactCard);
 
         topContactCard.querySelector('#btnContactLine')?.addEventListener('click', () => {
-          if (state.store.lineUrl) window.open(state.store.lineUrl, '_blank');
+          if (contactLine) window.open(contactLine, '_blank');
           else toast('ติดต่อ Line OA: @lilithstore', 'info');
         });
         topContactCard.querySelector('#btnContactFb')?.addEventListener('click', () => {
-          if (state.store.facebookUrl) window.open(state.store.facebookUrl, '_blank');
+          if (contactFb) window.open(contactFb, '_blank');
           else toast('ติดต่อ Facebook: Lilith Store', 'info');
         });
 
@@ -9803,9 +9956,17 @@
                 ${cartEntries.length === 0 ? '<div class="empty">Your cart is empty.</div>' : `
                   <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px">
                     ${cartEntries.map(p => {
-                      const thumbHtml = p.image
-                        ? `<img src="${escapeHTML(p.image)}" alt="${escapeHTML(p.name)}" style="width:52px;height:52px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';" /><div style="display:none;width:52px;height:52px;place-items:center;font-size:11px;font-weight:700;border-radius:12px;background:var(--primary-50);color:var(--accent-text);">${escapeHTML(p.cat || 'Item')}</div>`
-                        : `<div style="width:52px;height:52px;display:grid;place-items:center;font-size:11px;font-weight:700;border-radius:12px;background:var(--primary-50);color:var(--accent-text);">${escapeHTML(p.cat || 'Item')}</div>`;
+                      const thumbHtml = (p.type === 'coin_farm' || (p.name && p.name.includes('วนเหรียญ')))
+                        ? `<div style="width:52px; height:52px; border-radius:12px; background:var(--primary-50); border:1.5px solid var(--border); display:grid; place-items:center; color:var(--accent-text); flex:none;">
+                            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="8" cy="8" r="6"/>
+                              <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
+                              <path d="M7 6h2v4H7zm10 4h2v4h-2z"/>
+                            </svg>
+                          </div>`
+                        : (p.image
+                          ? `<img src="${escapeHTML(p.image)}" alt="${escapeHTML(p.name)}" style="width:52px;height:52px;object-fit:cover;border-radius:12px;flex:none;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';" /><div style="display:none;width:52px;height:52px;place-items:center;font-size:11px;font-weight:700;border-radius:12px;background:var(--primary-50);color:var(--accent-text);flex:none;">${escapeHTML(p.cat || 'Item')}</div>`
+                          : `<div style="width:52px;height:52px;display:grid;place-items:center;font-size:11px;font-weight:700;border-radius:12px;background:var(--primary-50);color:var(--accent-text);flex:none;">${escapeHTML(p.cat || 'Item')}</div>`);
                       return `
                         <div class="flex items-center gap-3" style="padding:10px; border:1px solid var(--border); border-radius:12px">
                           ${thumbHtml}
@@ -10402,64 +10563,117 @@
             ${footerGraphicHtml}
             <div style="text-align:center; font-family:'Sunshiney', cursive; font-size:22px; font-weight:700; color:var(--accent-text); margin-top:8px; line-height:1.2;">${escapeHTML(footerMsg)}</div>
             ${footerSub ? `<div style="text-align:center; font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(footerSub)}</div>` : ''}
-            <button class="btn btn-primary btn-block mt-3" id="btnTrackOrder" style="font-size:14px; font-weight:700;">Track your order →</button>
-            <button class="btn btn-block mt-2" id="dlReceipt" style="font-size:13.5px; font-weight:700;">Download / Share Receipt (บันทึก/พิมพ์ใบเสร็จ)</button>
+            <button class="btn btn-primary btn-block mt-3" id="btnTrackOrder" style="font-size:14px; font-weight:700;">Track your order</button>
+            <button class="btn btn-block mt-2" id="dlReceipt" style="font-size:13.5px; font-weight:700; background:var(--primary-50); border:1.5px solid var(--border); color:var(--accent-text); cursor:pointer;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <span>บันทึกรูปภาพใบเสร็จ (Save Receipt Image)</span>
+            </button>
           </div>
         `));
-        view.querySelector('#btnTrackOrder').addEventListener('click', () => {
+
+        const receiptEl = view.querySelector('.receipt');
+        view.querySelector('#btnTrackOrder')?.addEventListener('click', () => {
           root.querySelectorAll('#storeTabs .tab').forEach(x => x.classList.remove('active'));
           root.querySelector('#storeTabs [data-s="tracking"]').classList.add('active');
           drawStore('tracking');
         });
-        view.querySelector('#dlReceipt').addEventListener('click', async () => {
-          if (navigator.share) {
-            try {
-              await navigator.share({
-                title: 'BNC HayMate Order Receipt',
-                text: `BNC HayMate Receipt #${latestOrder.id} - ${latestOrder.customer} - Total: ${money(latestOrder.total)}`,
-                url: window.location.href
-              });
-              toast('แชร์ใบเสร็จเรียบร้อย', 'success');
-              return;
-            } catch (err) {}
-          }
-          window.print();
+        view.querySelector('#dlReceipt')?.addEventListener('click', async () => {
+          await downloadReceiptAsImage(receiptEl, latestOrder.id);
         });
       } else if (key === 'tracking') {
-        const latestOrder = (state.lastOrderId && ORDERS.find(x => String(x.id) === String(state.lastOrderId))) || ORDERS[0] || { id: 'HP-1042', customer: 'Anna Wong', date: new Date().toISOString().split('T')[0], status: 'waiting' };
-        const trackingTitle = state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'BNC HayMate';
-        const trackingSub = state.store.trackingReviewSub || '';
+        const latestOrder = (state.lastOrderId && ORDERS.find(x => String(x.id) === String(state.lastOrderId))) || ORDERS[0] || { id: 'HP-027691-891', customer: 'Anna Wong', date: new Date().toISOString().split('T')[0], status: 'waiting' };
+        const trackingTitle = state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'Lilith Store';
+        const trackingSub = state.store.trackingReviewSub || 'Thank you for your support';
         const trackingBtn = state.store.trackingReviewBtnText || 'เขียนรีวิว & ให้คะแนนร้าน';
+        const contactLine = state.store.homeContactLineUrl || state.store.lineUrl || '';
 
         view.appendChild(el(`
-          <div class="card" style="max-width:560px; margin:0 auto;">
-            <div class="card-title">Order Tracking</div>
-            <div class="card-sub">Order ${latestOrder.id} · Live Status</div>
-            <div class="timeline" style="margin-top:14px">
-              <div class="step done"><div class="bullet">✓</div><div><div class="label">Waiting Payment</div><div class="sub">กรุณาชำระเงินเพื่อยืนยันคำสั่งซื้อ</div></div></div>
-              <div class="step ${latestOrder.status !== 'waiting' ? 'done' : 'active'}"><div class="bullet">${latestOrder.status !== 'waiting' ? '✓' : '2'}</div><div><div class="label">Payment Verify</div><div class="sub">ร้านกำลังตรวจสอบคำสั่งซื้อ กรุณารอสักครู่</div></div></div>
-              <div class="step ${latestOrder.status === 'preparing' || latestOrder.status === 'completed' ? (latestOrder.status === 'completed' ? 'done' : 'active') : ''}"><div class="bullet">${latestOrder.status === 'completed' ? '✓' : '3'}</div><div><div class="label">Preparing</div><div class="sub">ตรวจสอบคำสั่งซื้อเสร็จสิ้น รอรับไอเทมตามคิว นำรหัสสลิปทักสอบถามคิวได้เลย</div></div></div>
-              <div class="step ${latestOrder.status === 'completed' ? 'done' : ''}"><div class="bullet">${latestOrder.status === 'completed' ? '✓' : '4'}</div><div><div class="label">Complete</div><div class="sub">จัดส่งเรียบร้อย</div></div></div>
+          <div class="card" style="max-width:540px; margin:0 auto; padding:28px 24px; border-radius:24px; border:1.5px solid var(--border); box-shadow:var(--shadow-soft);">
+            <div style="font-size:20px; font-weight:800; color:var(--text); margin-bottom:2px;">Order Tracking</div>
+            <div style="font-size:13px; color:var(--muted);">Order ${escapeHTML(latestOrder.id)} · Live Status</div>
+
+            <!-- Vertical Timeline (Matching Image) -->
+            <div class="timeline" style="margin-top:20px;">
+              <div class="step done">
+                <div class="bullet">✓</div>
+                <div>
+                  <div class="label">Waiting Payment</div>
+                  <div class="sub">กรุณาชำระเงินเพื่อยืนยันคำสั่งซื้อ</div>
+                </div>
+              </div>
+              <div class="step done">
+                <div class="bullet">✓</div>
+                <div>
+                  <div class="label">Payment Verify</div>
+                  <div class="sub">ร้านกำลังตรวจสอบคำสั่งซื้อ กรุณารอสักครู่</div>
+                </div>
+              </div>
+              <div class="step done">
+                <div class="bullet">✓</div>
+                <div>
+                  <div class="label">You're in queue</div>
+                  <div class="sub" style="color:var(--accent-text); font-weight:700;">กรุณาคัดลอกรหัสออเดอร์ส่งให้ทางร้าน</div>
+                </div>
+              </div>
+              <div class="step done">
+                <div class="bullet">✓</div>
+                <div>
+                  <div class="label">Complete</div>
+                  <div class="sub">จัดส่งเรียบร้อย</div>
+                </div>
+              </div>
             </div>
 
-            <!-- Review Card for Customers (Calligraphy Store Name + Subtext) -->
-            <div style="background:var(--primary-50); border:1.5px solid var(--border); border-radius:18px; padding:22px 18px; margin-top:22px; text-align:center; box-shadow:var(--shadow-soft);">
-              <div style="font-family:'Sunshiney', cursive; font-size:36px; font-weight:700; color:var(--accent-text); line-height:1.2; letter-spacing:0.5px;">
+            <!-- Order Code Box (Matching Image) -->
+            <div style="border:1.5px solid var(--border); border-radius:18px; padding:18px; margin-top:24px; background:var(--card); box-shadow:var(--shadow-soft);">
+              <div style="font-size:12.5px; font-weight:700; color:var(--muted);">รหัสคำสั่งซื้อของคุณ (Order Code):</div>
+              <div style="font-size:26px; font-weight:900; color:var(--accent-text); margin:8px 0 16px; letter-spacing:0.5px;">${escapeHTML(latestOrder.id)}</div>
+              <div class="flex gap-2" style="flex-wrap:wrap;">
+                <button type="button" class="btn btn-primary" id="btnCopyTrackingOrderCode" style="flex:1; min-width:140px; padding:10px 16px; font-weight:700; border-radius:12px; font-size:13px;">
+                  คัดลอกรหัสออเดอร์
+                </button>
+                <button type="button" class="btn" id="btnTrackingChatLine" style="flex:1; min-width:160px; padding:10px 16px; font-weight:700; border-radius:12px; border:1.5px solid var(--border); color:var(--accent-text); background:var(--primary-50); font-size:13px;">
+                  ทักแชทแจ้งออเดอร์ (Line OA)
+                </button>
+              </div>
+            </div>
+
+            <!-- Calligraphy Thank You Review Card (Matching Image) -->
+            <div style="background:var(--primary-50); border:1.5px solid var(--border); border-radius:20px; padding:24px 18px; margin-top:16px; text-align:center; box-shadow:var(--shadow-soft);">
+              <div style="font-family:'Sunshiney', cursive; font-size:42px; font-weight:700; color:var(--accent-text); line-height:1.2; letter-spacing:0.5px;">
                 ${escapeHTML(trackingTitle)}
               </div>
-              <div style="font-size:12.5px; color:var(--muted); margin-top:6px; font-weight:500;">
-                ${escapeHTML(trackingSub)}
+              <div style="font-size:13px; color:var(--muted); margin-top:6px; font-weight:500;">
+                ${escapeHTML(trackingSub || 'Thank you for your support')}
               </div>
-              <button class="btn btn-primary btn-sm mt-3" id="btnTrackingReview" style="padding:9px 24px; font-weight:700; font-size:13px; border-radius:12px; box-shadow:var(--shadow-soft);">
+              <button class="btn btn-primary mt-3" id="btnTrackingReview" style="padding:9px 24px; font-weight:700; font-size:13px; border-radius:12px; box-shadow:var(--shadow-soft);">
                 ${escapeHTML(trackingBtn)}
               </button>
             </div>
 
-            <button class="btn btn-block mt-4" id="btnBackToReceipt">← Back to Receipt</button>
+            <button class="btn btn-ghost btn-block mt-4" id="btnBackToReceipt" style="font-weight:700; font-size:12.5px; border-radius:12px; border:1px solid var(--border);">← Back to Receipt (กลับไปดูใบเสร็จ)</button>
           </div>
         `));
+
+        view.querySelector('#btnCopyTrackingOrderCode')?.addEventListener('click', () => {
+          const code = latestOrder.id;
+          const doCopy = () => {
+            toast(`คัดลอกรหัสออเดอร์ "${code}" แล้ว`, 'success');
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(doCopy).catch(doCopy);
+          } else {
+            doCopy();
+          }
+        });
+
+        view.querySelector('#btnTrackingChatLine')?.addEventListener('click', () => {
+          if (contactLine) window.open(contactLine, '_blank');
+          else toast('ติดต่อ Line OA: @lilithstore', 'info');
+        });
+
         view.querySelector('#btnTrackingReview')?.addEventListener('click', () => openWriteReviewModal(latestOrder));
-        view.querySelector('#btnBackToReceipt').addEventListener('click', () => {
+        view.querySelector('#btnBackToReceipt')?.addEventListener('click', () => {
           root.querySelectorAll('#storeTabs .tab').forEach(x => x.classList.remove('active'));
           root.querySelector('#storeTabs [data-s="receipt"]').classList.add('active');
           drawStore('receipt');
