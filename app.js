@@ -837,9 +837,9 @@
 
   let modalCloseTimer = null;
 
-  function openModal({ title, body, actions }) {
+  function openModal({ title, body, actions, width }) {
     const root = $('#modalRoot');
-    if (!root) return;
+    if (!root) return {};
     if (modalCloseTimer) {
       clearTimeout(modalCloseTimer);
       modalCloseTimer = null;
@@ -848,7 +848,7 @@
     const modal = el(`
       <div>
         <div class="modal-backdrop"></div>
-        <div class="modal">
+        <div class="modal" ${width ? `style="max-width:${width}px;"` : ''}>
           <div class="modal-head">
             <div class="modal-title">${escapeHTML(title)}</div>
             <button class="modal-close" aria-label="Close">✕</button>
@@ -858,9 +858,12 @@
         </div>
       </div>
     `);
-    modal.querySelector('.modal-body').append(typeof body === 'string' ? el(`<div>${body}</div>`) : body);
+    const modalBody = modal.querySelector('.modal-body');
+    if (body) {
+      modalBody.append(typeof body === 'string' ? el(`<div>${body}</div>`) : body);
+    }
     const actionsEl = modal.querySelector('.modal-actions');
-    (actions || [{ label: 'Close', kind: 'ghost' }]).forEach(a => {
+    (actions || (body ? [{ label: 'Close', kind: 'ghost' }] : [])).forEach(a => {
       const b = el(`<button class="btn ${a.kind === 'primary' ? 'btn-primary' : a.kind === 'danger' ? 'btn-danger' : 'btn-ghost'}">${escapeHTML(a.label)}</button>`);
       b.addEventListener('click', () => { if (a.onClick) a.onClick(); if (a.close !== false) closeModal(); });
       actionsEl.appendChild(b);
@@ -869,6 +872,7 @@
     requestAnimationFrame(() => root.classList.add('open'));
     modal.querySelector('.modal-close').addEventListener('click', closeModal);
     modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+    return { modal, body: modalBody, actionsEl, root };
   }
 
   function closeModal() {
@@ -3456,22 +3460,24 @@
     return null;
   }
 
-  // Custom Popup Dropdown Component Generator
-  function createCustomDropdown({ buttonLabel, options, selectedValue, onSelect }) {
-    let currentVal = selectedValue || '';
-    const initialOpt = options.find(o => o.value === currentVal);
-    const initialLabel = initialOpt ? initialOpt.label : buttonLabel;
+  // Custom Popup Multi-select Dropdown Component (Categories & Levels)
+  function createMultiDropdown({ buttonLabel, options, selectedValues = [], onSelect, entityName = 'หมวดหมู่' }) {
+    let currentVals = new Set(selectedValues.filter(Boolean));
 
     const wrap = el(`
       <div class="custom-dropdown-wrap">
         <button type="button" class="custom-dropdown-btn">
-          <span class="btn-text">${escapeHTML(initialLabel)}</span>
+          <span class="btn-text">${escapeHTML(buttonLabel)}</span>
           <span class="dropdown-arrow">▼</span>
         </button>
         <div class="custom-dropdown-menu">
+          <div class="custom-dropdown-option opt-all ${currentVals.size === 0 ? 'selected' : ''}" data-val="">
+            <span class="custom-radio ${currentVals.size === 0 ? 'checked' : ''}"></span>
+            <span>ทุก${escapeHTML(entityName)} (All ${escapeHTML(entityName)})</span>
+          </div>
           ${options.map(opt => `
-            <div class="custom-dropdown-option ${opt.value === currentVal ? 'selected' : ''}" data-val="${escapeHTML(opt.value)}">
-              <span class="custom-radio ${opt.value === currentVal ? 'checked' : ''}"></span>
+            <div class="custom-dropdown-option opt-item ${currentVals.has(opt.value) ? 'selected' : ''}" data-val="${escapeHTML(opt.value)}">
+              <span class="custom-radio ${currentVals.has(opt.value) ? 'checked' : ''}"></span>
               <span>${escapeHTML(opt.label)}</span>
             </div>
           `).join('')}
@@ -3483,6 +3489,32 @@
     const menu = wrap.querySelector('.custom-dropdown-menu');
     const btnText = wrap.querySelector('.btn-text');
     const arrow = wrap.querySelector('.dropdown-arrow');
+
+    const updateUI = () => {
+      if (currentVals.size === 0) {
+        btnText.textContent = buttonLabel;
+        btn.classList.remove('active');
+      } else {
+        btnText.textContent = `${entityName} (${currentVals.size})`;
+        btn.classList.add('active');
+      }
+
+      const optAll = wrap.querySelector('.opt-all');
+      if (optAll) {
+        const isAll = (currentVals.size === 0);
+        optAll.classList.toggle('selected', isAll);
+        optAll.querySelector('.custom-radio')?.classList.toggle('checked', isAll);
+      }
+
+      wrap.querySelectorAll('.opt-item').forEach(item => {
+        const v = item.dataset.val;
+        const isSel = currentVals.has(v);
+        item.classList.toggle('selected', isSel);
+        item.querySelector('.custom-radio')?.classList.toggle('checked', isSel);
+      });
+    };
+
+    updateUI();
 
     const toggle = (show) => {
       const willShow = show !== undefined ? show : !menu.classList.contains('show');
@@ -3496,7 +3528,7 @@
       });
 
       menu.classList.toggle('show', willShow);
-      btn.classList.toggle('active', willShow);
+      btn.classList.toggle('active', willShow || currentVals.size > 0);
       arrow.textContent = willShow ? '▲' : '▼';
     };
 
@@ -3505,20 +3537,24 @@
       toggle();
     });
 
-    wrap.querySelectorAll('.custom-dropdown-option').forEach(optEl => {
+    wrap.querySelector('.opt-all')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentVals.clear();
+      updateUI();
+      if (onSelect) onSelect([]);
+    });
+
+    wrap.querySelectorAll('.opt-item').forEach(optEl => {
       optEl.addEventListener('click', (e) => {
         e.stopPropagation();
         const val = optEl.dataset.val;
-        currentVal = val;
-        wrap.querySelectorAll('.custom-dropdown-option').forEach(o => {
-          const isSel = o.dataset.val === val;
-          o.classList.toggle('selected', isSel);
-          o.querySelector('.custom-radio')?.classList.toggle('checked', isSel);
-        });
-        const matched = options.find(o => o.value === val);
-        btnText.textContent = matched ? matched.label : buttonLabel;
-        toggle(false);
-        if (onSelect) onSelect(val);
+        if (currentVals.has(val)) {
+          currentVals.delete(val);
+        } else {
+          currentVals.add(val);
+        }
+        updateUI();
+        if (onSelect) onSelect(Array.from(currentVals));
       });
     });
 
@@ -3528,19 +3564,15 @@
 
     return {
       element: wrap,
-      getValue: () => currentVal,
-      setValue: (val) => {
-        currentVal = val;
-        wrap.querySelectorAll('.custom-dropdown-option').forEach(o => {
-          const isSel = o.dataset.val === val;
-          o.classList.toggle('selected', isSel);
-          o.querySelector('.custom-radio')?.classList.toggle('checked', isSel);
-        });
-        const matched = options.find(o => o.value === val);
-        btnText.textContent = matched ? matched.label : buttonLabel;
+      getValues: () => Array.from(currentVals),
+      setValues: (vals = []) => {
+        currentVals = new Set(vals.filter(Boolean));
+        updateUI();
       }
     };
   }
+
+  const createCustomDropdown = createMultiDropdown;
 
   // Category Manager Modal (in Product -> Item)
   function openManageCategoriesModal() {
@@ -3719,11 +3751,29 @@
   // --- TAB 1: Item HayDay Management ---
   function renderAdminItemsTab(container) {
     const priceRules = state.store.priceRules || [];
+    if (!state.store.levels || state.store.levels.length === 0) {
+      state.store.levels = ['Lv. 1 – 20', 'Lv. 21 – 40', 'Lv. 41 – 60', 'Lv. 61 – 80', 'Lv. 81 – 100+'];
+    }
 
     const wrap = el(`
       <div>
-        <!-- Module Toggle Row -->
-        <div class="module-switch-row">
+        <!-- Module Toggle & Page Header Row (Image 4 & 5) -->
+        <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+          <div>
+            <h1 class="page-title" style="font-size:24px; font-weight:800; margin:0 0 4px 0;">Categories &amp; Products</h1>
+            <div class="page-sub" style="font-size:13px; color:var(--muted);">จัดการหมวดหมู่และสร้างสินค้าใหม่พร้อมรูปภาพได้ไม่อั้น</div>
+          </div>
+          <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
+            <button type="button" class="btn btn-primary" id="btnHeaderNewCat" style="font-weight:700; border-radius:12px; padding:8px 18px;">
+              + New Category
+            </button>
+            <button type="button" class="btn btn-primary" id="btnHeaderCreateProd" style="font-weight:700; border-radius:12px; padding:8px 18px;">
+              + Create Product
+            </button>
+          </div>
+        </div>
+
+        <div class="module-switch-row" style="margin-bottom:16px;">
           <div>
             <strong style="font-size:13.5px; color:var(--text);">เปิดขายสินค้าไอเทมในหน้าร้าน (Enable Items Storefront)</strong>
             <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">เมื่อเปิด สินค้าไอเทมจะแสดงในหน้าร้านและหน้าแรก หากปิดจะซ่อนเฉพาะหมวดนี้</div>
@@ -3734,11 +3784,49 @@
           </label>
         </div>
 
-        <!-- SECTION: Setting Price (ตั้งค่าราคา & สเต็ปตามเลเวลและหมวดหมู่) -->
+        <!-- SECTION 1: All Categories (Image 4 & 5) -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <div class="card-title" style="font-size:16.5px; font-weight:800;">All Categories (${CATEGORIES.length})</div>
+              <div class="card-sub" style="font-size:12px; color:var(--muted); margin-top:2px;">คลิกที่หมวดหมู่เพื่อดูสินค้า หรือกดปุ่ม + เพื่อเพิ่มสินค้านั้นๆ ได้ไม่จำกัด</div>
+            </div>
+            <div class="search-wrap" style="min-width:200px; max-width:280px; border-radius:24px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+              <input placeholder="Search catalog..." id="adminCatSearch" />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px;" id="adminCategoriesGrid"></div>
+        </div>
+
+        <!-- SECTION 2: Level Classification (Image 4 & 5) -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+            <div>
+              <div class="card-title" style="font-size:15.5px; font-weight:800;">Level Classification (หมวดหมู่เลเวลสินค้าในเกม)</div>
+              <div class="card-sub" style="font-size:12px; color:var(--muted); margin-top:2px;">ตั้งค่าช่วงเลเวลเพื่อใช้กรองในหน้าสินค้าของลูกค้า (All Levels Multi-Dropdown)</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="btnAddLevelBadge" style="font-weight:700; border-radius:10px; padding:6px 14px;">
+              + เพิ่มช่วงเลเวลใหม่
+            </button>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:10px;" id="adminLevelsBadgesList">
+            ${(state.store.levels || []).map((lvl, idx) => `
+              <span class="admin-lvl-badge">
+                <span>${escapeHTML(lvl)}</span>
+                <span class="btn-del-lvl" data-idx="${idx}" title="ลบช่วงเลเวลนี้">✕</span>
+              </span>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- SECTION 3: Setting Price (ตั้งค่าราคา & สเต็ปตามเลเวลและหมวดหมู่) -->
         <div class="card" style="margin-bottom:16px;">
           <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
             <div>
-              <h2 style="font-size:19px; font-weight:800; color:var(--text); margin:0 0 3px 0;">Setting Price (ตั้งค่าราคา &amp; สเต็ปตามเลเวลและหมวดหมู่)</h2>
+              <h2 style="font-size:17.5px; font-weight:800; color:var(--text); margin:0 0 3px 0;">Setting Price (ตั้งค่าราคา &amp; สเต็ปตามเลเวลและหมวดหมู่)</h2>
               <div style="font-size:12px; color:var(--muted);">จัดการกำหนดสเต็ปราคาสินค้าขายส่งตามหมวดหมู่และช่วงเลเวล (เช่น อาหารสัตว์ Lv. 1–75, Lv. 76–256 หรือ All Level)</div>
             </div>
             <button type="button" class="btn btn-primary" id="btnAddPriceRuleBox" style="font-weight:800; border-radius:12px; font-size:12.5px; padding:7px 16px;">
@@ -3753,20 +3841,19 @@
           <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;" id="priceRulesGrid"></div>
         </div>
 
-        <!-- SECTION: Item Catalog & Controls -->
+        <!-- SECTION 4: Products Catalog -->
         <div class="card" style="margin-bottom:14px;">
           <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
             <div>
-              <div class="card-title">Item HayDay Catalog (${PRODUCTS.length} รายการ)</div>
-              <div class="card-sub">จัดการรายการสินค้าไอเทม หมวดหมู่ ราคา และสต็อก</div>
+              <div class="card-title" style="font-size:16.5px; font-weight:800;">Products Catalog (${PRODUCTS.length} total)</div>
+              <div class="card-sub" style="font-size:12px; color:var(--muted);">รายการสินค้าทั้งหมดพร้อมรูปภาพ สามารถแก้ไขหรือเพิ่มใหม่ได้ไม่จำกัด</div>
             </div>
             <div class="flex gap-2" style="flex-wrap:wrap;">
-              <button class="btn btn-primary" id="btnAddItemProduct">+ Add Product</button>
-              <button class="btn" id="btnManageCategories">Manage Categories (${CATEGORIES.length})</button>
+              <button class="btn btn-primary" id="btnAddItemProduct">+ Create Product</button>
             </div>
           </div>
 
-          <!-- Custom Popup Dropdowns Toolbar (Matching Screenshot) -->
+          <!-- Custom Popup Multi-Dropdowns Toolbar -->
           <div class="filter-bar" style="margin-top:14px; flex-wrap:wrap; gap:10px; align-items:center;">
             <div class="search-wrap" style="flex:1; min-width:180px; max-width:280px; border-radius:24px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
@@ -3796,6 +3883,126 @@
       state.store.enableItems = e.target.checked;
       syncStoreSettingsAcrossDevices();
       toast(state.store.enableItems ? 'เปิดการแสดงผลหมวด Item ในหน้าร้านแล้ว' : 'ปิดการแสดงผลหมวด Item ในหน้าร้านแล้ว', 'info');
+    });
+
+    // Render Admin Category Cards (Image 4 & 5)
+    const catGrid = wrap.querySelector('#adminCategoriesGrid');
+    const catSearchInp = wrap.querySelector('#adminCatSearch');
+    const renderCatCards = () => {
+      if (!catGrid) return;
+      const q = (catSearchInp?.value || '').toLowerCase().trim();
+      const filtered = CATEGORIES.filter(c => !q || c.name.toLowerCase().includes(q));
+      catGrid.innerHTML = '';
+      if (!filtered.length) {
+        catGrid.innerHTML = `<div style="grid-column:1/-1; padding:20px; text-align:center; color:var(--muted);">ไม่พบหมวดหมู่ที่ค้นหา</div>`;
+        return;
+      }
+      filtered.forEach((c) => {
+        const count = PRODUCTS.filter(p => p.cat === c.name).length;
+        const initial = c.name.slice(0, 2);
+        const card = el(`
+          <div class="admin-category-card">
+            <div class="flex items-center" style="justify-content:space-between;">
+              <div class="admin-cat-initial-box">${escapeHTML(initial)}</div>
+              <span class="badge" style="font-size:11.5px; font-weight:700; background:var(--primary-50); color:var(--accent-text); border:1px solid var(--border); border-radius:12px; padding:4px 10px;">${count} items</span>
+            </div>
+            <div>
+              <div style="font-size:15px; font-weight:800; color:var(--text);">${escapeHTML(c.name)}</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">${count} products in catalog</div>
+            </div>
+            <div class="flex gap-2" style="margin-top:4px;">
+              <button type="button" class="btn btn-primary btn-sm btn-cat-add-prod" style="flex:1; font-size:12px; font-weight:700; padding:6px 10px;">
+                + Add Product
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost btn-cat-edit" style="padding:6px 10px; border:1px solid var(--border); border-radius:10px;" title="แก้ไขชื่อ">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost btn-cat-del" style="padding:6px 10px; border:1px solid var(--border); border-radius:10px; color:var(--danger);" title="ลบหมวดหมู่">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        `);
+        card.querySelector('.btn-cat-add-prod')?.addEventListener('click', () => openAddProductModal(null, c.name));
+        card.querySelector('.btn-cat-edit')?.addEventListener('click', async () => {
+          const newName = prompt('แก้ไขชื่อหมวดหมู่:', c.name);
+          if (!newName || newName.trim() === '' || newName.trim() === c.name) return;
+          const oldName = c.name;
+          c.name = newName.trim();
+          PRODUCTS.forEach(p => { if (p.cat === oldName) p.cat = c.name; });
+          if (supabase) {
+            try {
+              await supabase.from('categories').update({ name: c.name }).eq('name', oldName);
+              await supabase.from('products').update({ cat: c.name }).eq('cat', oldName);
+            } catch(e) {}
+          }
+          persistProducts();
+          try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+          toast(`เปลี่ยนชื่อหมวดหมู่เป็น "${c.name}" แล้ว`, 'success');
+          renderAdminItemsTab(container);
+        });
+        card.querySelector('.btn-cat-del')?.addEventListener('click', async () => {
+          const hasProds = PRODUCTS.some(p => p.cat === c.name);
+          if (hasProds) {
+            if (!confirm(`หมวดหมู่ "${c.name}" มีสินค้าอยู่ ต้องการลบหรือไม่ (สินค้าจะถูกย้ายไปหมวดหมู่ทั่วไป)?`)) return;
+            PRODUCTS.forEach(p => { if (p.cat === c.name) p.cat = 'Other'; });
+            persistProducts();
+          } else {
+            if (!confirm(`คุณต้องการลบหมวดหมู่ "${c.name}" ใช่หรือไม่?`)) return;
+          }
+          const cIdx = CATEGORIES.findIndex(x => x.name === c.name);
+          if (cIdx !== -1) CATEGORIES.splice(cIdx, 1);
+          if (supabase) {
+            try { await supabase.from('categories').delete().eq('name', c.name); } catch(e) {}
+          }
+          try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+          toast(`ลบหมวดหมู่ "${c.name}" เรียบร้อยแล้ว`, 'info');
+          renderAdminItemsTab(container);
+        });
+        catGrid.appendChild(card);
+      });
+    };
+    renderCatCards();
+    catSearchInp?.addEventListener('input', renderCatCards);
+
+    // New Category Buttons
+    const handleNewCat = async () => {
+      const name = prompt('กรอกชื่อหมวดหมู่ใหม่:');
+      if (!name || !name.trim()) return;
+      const trimmed = name.trim();
+      if (CATEGORIES.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
+        return toast('มีหมวดหมู่นี้อยู่แล้ว', 'error');
+      }
+      CATEGORIES.push({ name: trimmed, count: 0 });
+      if (supabase) {
+        try { await supabase.from('categories').insert([{ name: trimmed }]); } catch(e) {}
+      }
+      try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+      toast(`เพิ่มหมวดหมู่ "${trimmed}" เรียบร้อยแล้ว`, 'success');
+      renderAdminItemsTab(container);
+    };
+    wrap.querySelector('#btnHeaderNewCat')?.addEventListener('click', handleNewCat);
+    wrap.querySelector('#btnHeaderCreateProd')?.addEventListener('click', () => openAddProductModal());
+
+    // Level Badges Listeners
+    wrap.querySelectorAll('.btn-del-lvl').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = +btn.dataset.idx;
+        state.store.levels.splice(idx, 1);
+        syncStoreSettingsAcrossDevices();
+        toast('ลบช่วงเลเวลเรียบร้อย', 'info');
+        renderAdminItemsTab(container);
+      });
+    });
+
+    wrap.querySelector('#btnAddLevelBadge')?.addEventListener('click', () => {
+      const newLvl = prompt('กรอกช่วงเลเวลใหม่ (เช่น Lv. 101 – 150):');
+      if (!newLvl || !newLvl.trim()) return;
+      if (!state.store.levels) state.store.levels = [];
+      state.store.levels.push(newLvl.trim());
+      syncStoreSettingsAcrossDevices();
+      toast(`เพิ่มช่วงเลเวล "${newLvl.trim()}" เรียบร้อยแล้ว`, 'success');
+      renderAdminItemsTab(container);
     });
 
     // Render Price Rules Boxes
@@ -3923,7 +4130,6 @@
 
     wrap.querySelector('#btnAddPriceRuleBox')?.addEventListener('click', () => openAddPriceRuleModal());
     wrap.querySelector('#btnAddItemProduct')?.addEventListener('click', () => openAddProductModal());
-    wrap.querySelector('#btnManageCategories')?.addEventListener('click', () => openManageCategoriesModal());
 
     const grid = wrap.querySelector('#adminItemGrid');
     const pager = wrap.querySelector('#adminItemPager');
@@ -3932,20 +4138,18 @@
     const btnReset = wrap.querySelector('#btnAdminResetFilters');
     const PAGE_SIZE = 160;
     let currentPage = 1;
-    let selectedCat = '';
-    let selectedLvl = '';
+    let selectedCats = [];
+    let selectedLvls = [];
 
-    // Initialize Custom Dropdowns
-    const catOptions = [
-      { value: '', label: 'All categories' },
-      ...CATEGORIES.map(c => ({ value: c.name, label: c.name }))
-    ];
-    const catDropdown = createCustomDropdown({
+    // Initialize Custom Multi-Dropdowns
+    const catOptions = CATEGORIES.map(c => ({ value: c.name, label: c.name }));
+    const catDropdown = createMultiDropdown({
       buttonLabel: 'All categories',
+      entityName: 'หมวดหมู่',
       options: catOptions,
-      selectedValue: selectedCat,
-      onSelect: (val) => {
-        selectedCat = val;
+      selectedValues: selectedCats,
+      onSelect: (vals) => {
+        selectedCats = vals;
         currentPage = 1;
         drawGrid();
       }
@@ -3953,19 +4157,19 @@
     wrap.querySelector('#adminCatDropdownSlot')?.appendChild(catDropdown.element);
 
     const levelOptions = [
-      { value: '', label: 'All Levels' },
-      { value: '1-20', label: 'Lv. 1 – 20' },
-      { value: '21-40', label: 'Lv. 21 – 40' },
-      { value: '41-60', label: 'Lv. 41 – 60' },
-      { value: '61-80', label: 'Lv. 61 – 80' },
-      { value: '81-100+', label: 'Lv. 81 – 100+' }
+      { value: '1-20', label: 'Lv. 1 - 20' },
+      { value: '21-40', label: 'Lv. 21 - 40' },
+      { value: '41-60', label: 'Lv. 41 - 60' },
+      { value: '61-80', label: 'Lv. 61 - 80' },
+      { value: '81-100+', label: 'Lv. 81 - 100+' }
     ];
-    const levelDropdown = createCustomDropdown({
+    const levelDropdown = createMultiDropdown({
       buttonLabel: 'All Levels',
+      entityName: 'เลเวล',
       options: levelOptions,
-      selectedValue: selectedLvl,
-      onSelect: (val) => {
-        selectedLvl = val;
+      selectedValues: selectedLvls,
+      onSelect: (vals) => {
+        selectedLvls = vals;
         currentPage = 1;
         drawGrid();
       }
@@ -3974,10 +4178,10 @@
 
     btnReset.addEventListener('click', () => {
       searchInp.value = '';
-      selectedCat = '';
-      selectedLvl = '';
-      catDropdown.setValue('');
-      levelDropdown.setValue('');
+      selectedCats = [];
+      selectedLvls = [];
+      catDropdown.setValues([]);
+      levelDropdown.setValues([]);
       currentPage = 1;
       drawGrid();
       toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
@@ -3985,19 +4189,21 @@
 
     function drawGrid() {
       const q = searchInp.value.toLowerCase().trim();
-      const cat = selectedCat;
-      const lvl = selectedLvl;
 
       const list = PRODUCTS.filter(p => {
         if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
-        if (cat && p.cat !== cat) return false;
-        if (lvl) {
+        if (selectedCats.length > 0 && !selectedCats.includes(p.cat)) return false;
+        if (selectedLvls.length > 0) {
           const pLevel = Number(p.level) || 1;
-          if (lvl === '1-20' && (pLevel < 1 || pLevel > 20)) return false;
-          if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
-          if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
-          if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
-          if (lvl === '81-100+' && pLevel < 81) return false;
+          const match = selectedLvls.some(lvl => {
+            if (lvl === '1-20') return pLevel >= 1 && pLevel <= 20;
+            if (lvl === '21-40') return pLevel >= 21 && pLevel <= 40;
+            if (lvl === '41-60') return pLevel >= 41 && pLevel <= 60;
+            if (lvl === '61-80') return pLevel >= 61 && pLevel <= 80;
+            if (lvl === '81-100+' || lvl === '81+') return pLevel >= 81;
+            return false;
+          });
+          if (!match) return false;
         }
         return true;
       });
@@ -8496,7 +8702,42 @@
       const isGameIdsActive = state.store.enableGameIds !== false;
 
       if (key === 'home') {
-        // 1. Carousel Container (Dynamic Slides, 1:1 Aspect Ratio at Top)
+        // 1. Top Contact Header Card (Image 1)
+        const topContactCard = el(`
+          <div class="home-top-contact-card">
+            <div style="display:flex; align-items:center; gap:14px; flex:1;">
+              <div style="width:52px; height:52px; border-radius:50%; background:var(--primary-50); border:1.5px solid var(--border); display:grid; place-items:center; flex:none;">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="var(--accent-text)" style="opacity:0.9;"><path d="M12 2a3 3 0 0 0-3 3c0 .8.3 1.5.8 2.1A5.5 5.5 0 0 0 4 12.5C4 15.5 6.5 18 9.5 18c.8 0 1.5-.2 2.1-.5.4.3.9.5 1.4.5a3 3 0 0 0 3-3c0-.8-.3-1.5-.8-2.1A5.5 5.5 0 0 0 20 7.5C20 4.5 17.5 2 14.5 2c-.8 0-1.5.2-2.1.5-.4-.3-.9-.5-1.4-.5Z"/><circle cx="12" cy="10" r="2" fill="#fff"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13.5px; font-weight:800; color:var(--text); margin-bottom:6px;">ติดต่อสอบถาม &amp; แจ้งรหัสออเดอร์</div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <button type="button" class="home-contact-pill-btn" id="btnContactLine" style="background:#06C75515; color:#06C755; border-color:#06C75540;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.019 9.572.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975 1.766-1.924 2.564-3.882 2.564-5.932"/></svg>
+                    <span>Line OA</span>
+                  </button>
+                  <button type="button" class="home-contact-pill-btn" id="btnContactFb" style="background:#1877F215; color:#1877F2; border-color:#1877F240;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    <span>Facebook</span>
+                  </button>
+                </div>
+                <div style="font-size:11.5px; color:var(--muted); margin-top:6px;">ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.</div>
+              </div>
+            </div>
+          </div>
+        `);
+        view.appendChild(topContactCard);
+
+        topContactCard.querySelector('#btnContactLine')?.addEventListener('click', () => {
+          if (state.store.lineUrl) window.open(state.store.lineUrl, '_blank');
+          else toast('ติดต่อ Line OA: @lilithstore', 'info');
+        });
+        topContactCard.querySelector('#btnContactFb')?.addEventListener('click', () => {
+          if (state.store.facebookUrl) window.open(state.store.facebookUrl, '_blank');
+          else toast('ติดต่อ Facebook: Lilith Store', 'info');
+        });
+
+        // 2. Carousel Container (Dynamic Slides, 1:1 Aspect Ratio at Top)
         const carouselEl = el(`
           <div>
             ${state.isAdmin ? `
@@ -8574,20 +8815,41 @@
           });
         });
 
-        // 2. Compact Hero Banner
+        // 3. Compact Hero Banner & 4 Highlights Grid (Image 2)
         const heroGraphicHtml = (state.store.heroIconType === 'image' && state.store.heroImage)
           ? `<img src="${escapeHTML(state.store.heroImage)}" alt="Hero" style="width:38px; height:38px; object-fit:contain; border-radius:10px; display:block;" onerror="this.style.display='none';" />`
-          : '';
+          : `<div style="width:34px; height:34px; border-radius:10px; background:var(--primary-100); display:grid; place-items:center; color:var(--accent-text);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3c0 .8.3 1.5.8 2.1A5.5 5.5 0 0 0 4 12.5C4 15.5 6.5 18 9.5 18c.8 0 1.5-.2 2.1-.5.4.3.9.5 1.4.5a3 3 0 0 0 3-3c0-.8-.3-1.5-.8-2.1A5.5 5.5 0 0 0 20 7.5C20 4.5 17.5 2 14.5 2c-.8 0-1.5.2-2.1.5-.4-.3-.9-.5-1.4-.5Z"/><circle cx="12" cy="10" r="2"/></svg></div>`;
 
         const compactHero = el(`
-          <div class="store-hero">
-            <div style="flex:1;">
-              <h2 style="font-size:15.5px; font-weight:800;">${escapeHTML(state.store.heroTitle || 'ยินดีต้อนรับสู่ร้านค้า')}</h2>
-              <p style="font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(state.store.heroSub || 'เลือกซื้อสินค้าไอเทม บริการวนเหรียญ และไอดีเกมคุณภาพ')}</p>
+          <div>
+            <div class="store-hero" style="margin-bottom:12px;">
+              <div style="flex:1;">
+                <h2 style="font-size:16px; font-weight:800; color:var(--text); margin:0 0 3px 0;">${escapeHTML(state.store.heroTitle || 'Fresh from the oven, daily')}</h2>
+                <p style="font-size:12px; color:var(--muted); margin:0;">${escapeHTML(state.store.heroSub || 'Handmade cakes, pastries, and rose-scented drinks.')}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="btn btn-primary btn-sm" id="btnHeroShop" style="font-size:12px; padding:6px 14px; font-weight:700;">${escapeHTML(state.store.heroBtnText || `Shop Menu (${PRODUCTS.length} items)`)}</button>
+                ${heroGraphicHtml}
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <button class="btn btn-primary btn-sm" id="btnHeroShop" style="font-size:12px; padding:6px 14px;">${escapeHTML(state.store.heroBtnText || 'ดูสินค้าทั้งหมด')}</button>
-              ${heroGraphicHtml}
+
+            <!-- 4 Highlights Grid (Image 2) -->
+            <div class="highlights-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; margin-bottom:16px;">
+              ${[0, 1, 2, 3].map(i => {
+                const hl = (state.store.highlights && state.store.highlights[i]) || {};
+                const hasImg = hl.iconType === 'image' && hl.image;
+                return `
+                  <div class="card" style="margin:0; padding:14px; border:1.5px solid var(--border); border-radius:18px; background:var(--card); display:flex; align-items:center; justify-content:space-between; min-height:68px;">
+                    <div>
+                      <div style="font-size:13.5px; font-weight:800; color:var(--text);">${escapeHTML(hl.title || '')}</div>
+                      <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${escapeHTML(hl.sub || '')}</div>
+                    </div>
+                    <div style="width:38px; height:38px; border-radius:12px; background:var(--primary-50); border:1px solid var(--border); display:grid; place-items:center; flex:none;">
+                      ${hasImg ? `<img src="${escapeHTML(hl.image)}" style="width:100%;height:100%;object-fit:contain;border-radius:12px;" />` : `<div style="width:12px; height:12px; border-radius:50%; background:var(--primary-200);"></div>`}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
             </div>
           </div>
         `);
@@ -8599,7 +8861,7 @@
           drawStore('products');
         });
 
-        // 3. SERVICE SECTION A: วนเหรียญ (Coin Farming Showcase) - IF ENABLED
+        // 4. SERVICE SECTION A: วนเหรียญ (Coin Farming Showcase) - IF ENABLED
         if (isCoinFarmActive) {
           const boxes = state.store.coinFarmBoxes || [];
           let activeBoxIdx = 0;
@@ -8690,7 +8952,7 @@
           });
         }
 
-        // 4. SERVICE SECTION B: Item HayDay Popular Picks - IF ENABLED
+        // 5. SERVICE SECTION B: Item HayDay Popular Picks - IF ENABLED
         if (isItemsActive) {
           const itemsSection = el(`
             <div class="card" style="margin-top:16px">
@@ -8764,7 +9026,7 @@
           });
         }
 
-        // 5. SERVICE SECTION C: ตลาดซื้อขายไอดีเกม (Game ID Showcase) - IF ENABLED
+        // 6. SERVICE SECTION C: ตลาดซื้อขายไอดีเกม (Game ID Showcase) - IF ENABLED
         if (isGameIdsActive) {
           const accs = state.store.gameAccounts || [];
           const gameIdsSection = el(`
@@ -8879,7 +9141,7 @@
           });
         }
 
-        // 6. Customer Reviews & Ratings
+        // 7. Customer Reviews & Ratings
         const sortedHomeReviews = [...REVIEWS].sort((a, b) => {
           if (a.pinned && !b.pinned) return -1;
           if (!a.pinned && b.pinned) return 1;
@@ -8948,36 +9210,6 @@
         `);
         view.appendChild(reviewsSection);
         reviewsSection.querySelector('#btnHomeWriteReview')?.addEventListener('click', () => openWriteReviewModal());
-
-        // 7. Store Contact / Footer Section
-        const contactSection = el(`
-          <div class="card" style="margin-top:16px; background:var(--card); border:1.5px solid var(--border); border-radius:18px; padding:18px;">
-            <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
-              <div>
-                <div class="card-title" style="font-size:16px; font-weight:800; color:var(--text);">Contact &amp; Store Information (ติดต่อเรา)</div>
-                <div class="card-sub" style="font-size:12px; color:var(--muted);">สอบถามข้อมูลเพิ่มเติม หรือแจ้งปัญหาการสั่งซื้อ</div>
-              </div>
-            </div>
-            <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-              <div style="padding:12px; border-radius:14px; background:var(--primary-50); border:1px solid var(--border);">
-                <div style="font-size:11.5px; font-weight:700; color:var(--muted);">ชื่อร้านค้า</div>
-                <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:2px;">${escapeHTML(state.store.name || 'BNC HayMate')}</div>
-                <div style="font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(state.store.tagline || 'Handmade sweet things & bakery')}</div>
-              </div>
-              <div style="padding:12px; border-radius:14px; background:var(--primary-50); border:1px solid var(--border);">
-                <div style="font-size:11.5px; font-weight:700; color:var(--muted);">เวลาให้บริการ</div>
-                <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:2px;">เปิดบริการทุกวัน (24 ชม.)</div>
-                <div style="font-size:12px; color:var(--muted); margin-top:2px;">จัดส่งสินค้าและวนเหรียญรวดเร็ว</div>
-              </div>
-              <div style="padding:12px; border-radius:14px; background:var(--primary-50); border:1px solid var(--border);">
-                <div style="font-size:11.5px; font-weight:700; color:var(--muted);">ช่องทางชำระเงิน</div>
-                <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:2px;">โอนผ่านธนาคาร / พร้อมเพย์</div>
-                <div style="font-size:12px; color:var(--muted); margin-top:2px;">อัปโหลดสลิปตรวจสอบอัตโนมัติ</div>
-              </div>
-            </div>
-          </div>
-        `);
-        view.appendChild(contactSection);
 
       } else if (key === 'products') {
         // Multi-Product Storefront View with Service Switcher
@@ -9075,40 +9307,39 @@
             const btnReset = itemBox.querySelector('#btnStoreResetFilters');
             const PAGE = 160;
             let page = 1;
-            let selectedCat = '';
-            let selectedLvl = '';
+            let selectedCats = [];
+            let selectedLvls = [];
 
-            // Custom Dropdowns
-            const catOptions = [
-              { value: '', label: 'All categories' },
-              ...CATEGORIES.map(c => ({ value: c.name, label: c.name }))
-            ];
-            const catDropdown = createCustomDropdown({
+            // Custom Multi-Dropdown for Categories
+            const catOptions = CATEGORIES.map(c => ({ value: c.name, label: c.name }));
+            const catDropdown = createMultiDropdown({
               buttonLabel: 'All categories',
+              entityName: 'หมวดหมู่',
               options: catOptions,
-              selectedValue: selectedCat,
-              onSelect: (val) => {
-                selectedCat = val;
+              selectedValues: selectedCats,
+              onSelect: (vals) => {
+                selectedCats = vals;
                 page = 1;
                 drawStoreGrid();
               }
             });
             itemBox.querySelector('#storeCatDropdownSlot')?.appendChild(catDropdown.element);
 
+            // Custom Multi-Dropdown for Levels (Matching Image 3)
             const levelOptions = [
-              { value: '', label: 'All Levels' },
-              { value: '1-20', label: 'Lv. 1 – 20' },
-              { value: '21-40', label: 'Lv. 21 – 40' },
-              { value: '41-60', label: 'Lv. 41 – 60' },
-              { value: '61-80', label: 'Lv. 61 – 80' },
-              { value: '81-100+', label: 'Lv. 81 – 100+' }
+              { value: '1-20', label: 'Lv. 1 - 20' },
+              { value: '21-40', label: 'Lv. 21 - 40' },
+              { value: '41-60', label: 'Lv. 41 - 60' },
+              { value: '61-80', label: 'Lv. 61 - 80' },
+              { value: '81-100+', label: 'Lv. 81 - 100+' }
             ];
-            const levelDropdown = createCustomDropdown({
+            const levelDropdown = createMultiDropdown({
               buttonLabel: 'All Levels',
+              entityName: 'เลเวล',
               options: levelOptions,
-              selectedValue: selectedLvl,
-              onSelect: (val) => {
-                selectedLvl = val;
+              selectedValues: selectedLvls,
+              onSelect: (vals) => {
+                selectedLvls = vals;
                 page = 1;
                 drawStoreGrid();
               }
@@ -9117,10 +9348,10 @@
 
             btnReset.addEventListener('click', () => {
               searchEl.value = '';
-              selectedCat = '';
-              selectedLvl = '';
-              catDropdown.setValue('');
-              levelDropdown.setValue('');
+              selectedCats = [];
+              selectedLvls = [];
+              catDropdown.setValues([]);
+              levelDropdown.setValues([]);
               page = 1;
               drawStoreGrid();
               toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
@@ -9143,19 +9374,21 @@
 
             function drawStoreGrid() {
               const q = searchEl.value.toLowerCase().trim();
-              const cat = selectedCat;
-              const lvl = selectedLvl;
 
               const list = PRODUCTS.filter(p => {
                 if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
-                if (cat && p.cat !== cat) return false;
-                if (lvl) {
+                if (selectedCats.length > 0 && !selectedCats.includes(p.cat)) return false;
+                if (selectedLvls.length > 0) {
                   const pLevel = Number(p.level) || 1;
-                  if (lvl === '1-20' && (pLevel < 1 || pLevel > 20)) return false;
-                  if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
-                  if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
-                  if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
-                  if (lvl === '81-100+' && pLevel < 81) return false;
+                  const match = selectedLvls.some(lvl => {
+                    if (lvl === '1-20') return pLevel >= 1 && pLevel <= 20;
+                    if (lvl === '21-40') return pLevel >= 21 && pLevel <= 40;
+                    if (lvl === '41-60') return pLevel >= 41 && pLevel <= 60;
+                    if (lvl === '61-80') return pLevel >= 61 && pLevel <= 80;
+                    if (lvl === '81-100+' || lvl === '81+') return pLevel >= 81;
+                    return false;
+                  });
+                  if (!match) return false;
                 }
                 return true;
               });
