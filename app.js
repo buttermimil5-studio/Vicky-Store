@@ -8518,7 +8518,7 @@
                   <div class="carousel-slide" data-idx="${idx}">
                     ${b.image
                       ? `<img src="${escapeHTML(b.image)}" alt="Slide ${idx + 1}" style="width:100%; height:100%; object-fit:cover; display:block; user-select:none;" />`
-                      : `<div style="width:100%; height:100%; display:grid; place-items:center; background:var(--primary-50); color:var(--muted); font-size:13px; font-weight:700; user-select:none;"><div style="text-align:center;"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 4px; display:block; opacity:0.5;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><div>Slide #${idx + 1}</div></div></div>`
+                      : `<div style="width:100%; height:100%; display:grid; place-items:center; background:var(--primary-50); color:var(--muted); font-size:13px; font-weight:700; user-select:none;"><div style="text-align:center;"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 4px; display:block; opacity:0.5;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="2" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><div>Slide #${idx + 1}</div></div></div>`
                     }
                   </div>
                 `).join('')}
@@ -8557,205 +8557,6 @@
               if (i === currentSlide) d.classList.add('active');
               else d.classList.remove('active');
             });
-          }
-
-          if (state.storeProductSubTab === 'items' && isItemsActive) {
-            // ITEM HAYDAY CATALOG
-            const itemBox = el(`
-              <div class="card">
-                <div class="flex items-center" style="justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
-                  <div>
-                    <div class="card-title">Menu &amp; Products</div>
-                    <div class="card-sub">Tap item to add to cart</div>
-                  </div>
-                  <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
-                    <div class="search-wrap" style="min-width:180px; max-width:260px; border-radius:24px;">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
-                      <input placeholder="Search..." id="storeSearch"/>
-                    </div>
-                    <div id="storeCatDropdownSlot"></div>
-                    <div id="storeLevelDropdownSlot"></div>
-                    <button type="button" class="btn btn-sm btn-ghost" id="btnStoreResetFilters" style="padding:7px 14px; font-weight:700; border:1.5px solid var(--border); border-radius:20px;">
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <div class="flex items-center" style="justify-content:space-between; margin-bottom:10px; color:var(--muted); font-size:12.5px">
-                  <span id="storeCount"></span>
-                  <span id="storeCartInfo" style="cursor:pointer;" title="Go to Cart"></span>
-                </div>
-                <div class="product-grid" id="storeGrid"></div>
-                <div class="pagination" id="storePager"></div>
-              </div>
-            `);
-            contentContainer.appendChild(itemBox);
-
-            const grid = itemBox.querySelector('#storeGrid');
-            const pager = itemBox.querySelector('#storePager');
-            const countEl = itemBox.querySelector('#storeCount');
-            const cartInfo = itemBox.querySelector('#storeCartInfo');
-            const searchEl = itemBox.querySelector('#storeSearch');
-            const btnReset = itemBox.querySelector('#btnStoreResetFilters');
-            const PAGE = 160;
-            let page = 1;
-            let selectedCat = '';
-            let selectedLvl = '';
-
-            // Custom Dropdowns
-            const catOptions = [
-              { value: '', label: 'All categories' },
-              ...CATEGORIES.map(c => ({ value: c.name, label: c.name }))
-            ];
-            const catDropdown = createCustomDropdown({
-              buttonLabel: 'All categories',
-              options: catOptions,
-              selectedValue: selectedCat,
-              onSelect: (val) => {
-                selectedCat = val;
-                page = 1;
-                drawStoreGrid();
-              }
-            });
-            itemBox.querySelector('#storeCatDropdownSlot')?.appendChild(catDropdown.element);
-
-            const levelOptions = [
-              { value: '', label: 'All Levels' },
-              { value: '1-20', label: 'Lv. 1 – 20' },
-              { value: '21-40', label: 'Lv. 21 – 40' },
-              { value: '41-60', label: 'Lv. 41 – 60' },
-              { value: '61-80', label: 'Lv. 61 – 80' },
-              { value: '81-100+', label: 'Lv. 81 – 100+' }
-            ];
-            const levelDropdown = createCustomDropdown({
-              buttonLabel: 'All Levels',
-              options: levelOptions,
-              selectedValue: selectedLvl,
-              onSelect: (val) => {
-                selectedLvl = val;
-                page = 1;
-                drawStoreGrid();
-              }
-            });
-            itemBox.querySelector('#storeLevelDropdownSlot')?.appendChild(levelDropdown.element);
-
-            btnReset.addEventListener('click', () => {
-              searchEl.value = '';
-              selectedCat = '';
-              selectedLvl = '';
-              catDropdown.setValue('');
-              levelDropdown.setValue('');
-              page = 1;
-              drawStoreGrid();
-              toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
-            });
-
-            function updateCartInfo() {
-              const totalQty = Object.values(state.selected).reduce((a,b)=>a+Number(b||0), 0);
-              const totalPrice = Object.entries(state.selected).reduce((sum, [id, q]) => {
-                return sum + calculateCartItemPrice(id, q);
-              }, 0);
-              cartInfo.innerHTML = totalQty
-                ? `Cart: <strong style="color:var(--text)">${totalQty}</strong> items · <strong style="color:var(--accent-text)">${money(totalPrice)}</strong> (Go to Cart →)`
-                : 'Cart is empty';
-            }
-            cartInfo.addEventListener('click', () => {
-              root.querySelectorAll('#storeTabs .tab').forEach(x => x.classList.remove('active'));
-              root.querySelector('#storeTabs [data-s="cart"]')?.classList.add('active');
-              drawStore('cart');
-            });
-
-            function drawStoreGrid() {
-              const q = searchEl.value.toLowerCase().trim();
-              const cat = selectedCat;
-              const lvl = selectedLvl;
-
-              const list = PRODUCTS.filter(p => {
-                if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
-                if (cat && p.cat !== cat) return false;
-                if (lvl) {
-                  const pLevel = Number(p.level) || 1;
-                  if (lvl === '1-20' && (pLevel < 1 || pLevel > 20)) return false;
-                  if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
-                  if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
-                  if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
-                  if (lvl === '81-100+' && pLevel < 81) return false;
-                }
-                return true;
-              });
-
-              const totalPages = Math.max(1, Math.ceil(list.length / PAGE));
-              if (page > totalPages) page = totalPages;
-              const start = (page - 1) * PAGE;
-              const items = list.slice(start, start + PAGE);
-              countEl.textContent = list.length
-                ? `Showing ${start + 1}–${Math.min(list.length, start + PAGE)} of ${list.length} products`
-                : 'No products';
-              grid.innerHTML = '';
-
-              const ratio = Number(state.store?.priceRatio) || 1.0;
-
-              items.forEach(p => {
-                const sInfo = getStockStatusInfo(p.stock);
-                const stockCls = sInfo.dotClass;
-                const qty = state.selected[p.id] || 0;
-                const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
-                const step = getProductClickStep(p);
-                const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
-                const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
-                const tile = el(`
-                  <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1}, สเต็ปคลิกละ ${step} ชิ้น)">
-                    ${mediaHtml}
-                    <span class="stock-dot"></span>
-                    <span class="qty-badge">${qty}</span>
-                  </div>
-                `);
-                tile.addEventListener('click', () => {
-                  if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-                  const clickStep = getProductClickStep(p);
-                  state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
-                  tile.classList.add('selected');
-                  const badge = tile.querySelector('.qty-badge');
-                  badge.textContent = state.selected[p.id];
-                  badge.style.animation = 'none'; void badge.offsetWidth; badge.style.animation = '';
-                  updateCartInfo();
-                  updateFloatingCartBtn();
-                });
-                tile.addEventListener('contextmenu', (e) => {
-                  e.preventDefault();
-                  if (!state.selected[p.id]) return;
-                  const clickStep = getProductClickStep(p);
-                  state.selected[p.id] -= clickStep;
-                  if (state.selected[p.id] <= 0) {
-                    delete state.selected[p.id];
-                    tile.classList.remove('selected');
-                  } else {
-                    tile.querySelector('.qty-badge').textContent = state.selected[p.id];
-                  }
-                  updateCartInfo();
-                  updateFloatingCartBtn();
-                });
-                grid.appendChild(tile);
-              });
-
-              if (!list.length) grid.appendChild(el(`<div class="card empty" style="grid-column: 1/-1"><div class="icon">${ICONS.products}</div>No products match your filters.</div>`));
-
-              pager.innerHTML = '';
-              if (totalPages > 1) {
-                const mkBtn = (label, pNum, opts = {}) => {
-                  const b = el(`<button class="pg ${opts.active ? 'active' : ''}" ${opts.disabled ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>${label}</button>`);
-                  if (!opts.disabled) b.addEventListener('click', () => { page = pNum; drawStoreGrid(); });
-                  return b;
-                };
-                pager.appendChild(mkBtn('‹', page - 1, { disabled: page === 1 }));
-                for (let i = 1; i <= totalPages; i++) pager.appendChild(mkBtn(String(i), i, { active: i === page }));
-                pager.appendChild(mkBtn('›', page + 1, { disabled: page === totalPages }));
-              }
-              updateCartInfo();
-            }
-
-            searchEl.addEventListener('input', () => { page = 1; drawStoreGrid(); });
-            drawStoreGrid();
-            updateCartInfo();
           }
 
           carouselEl.querySelector('#cPrev')?.addEventListener('click', (e) => { e.stopPropagation(); goToSlide(currentSlide - 1); });
@@ -8947,7 +8748,8 @@
               const p = PRODUCTS.find(x => String(x.id) === String(pid));
               if (!p) return;
               if (p.stock === 0) return toast(`${p.name} สินค้าหมด`, 'error');
-              state.selected[p.id] = (state.selected[p.id] || 0) + 1;
+              const clickStep = getProductClickStep(p);
+              state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
               toast(`เพิ่ม ${p.name} ลงในตะกร้าแล้ว`, 'success');
               updateFloatingCartBtn();
               drawStore('home');
@@ -9147,6 +8949,36 @@
         view.appendChild(reviewsSection);
         reviewsSection.querySelector('#btnHomeWriteReview')?.addEventListener('click', () => openWriteReviewModal());
 
+        // 7. Store Contact / Footer Section
+        const contactSection = el(`
+          <div class="card" style="margin-top:16px; background:var(--card); border:1.5px solid var(--border); border-radius:18px; padding:18px;">
+            <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+              <div>
+                <div class="card-title" style="font-size:16px; font-weight:800; color:var(--text);">Contact &amp; Store Information (ติดต่อเรา)</div>
+                <div class="card-sub" style="font-size:12px; color:var(--muted);">สอบถามข้อมูลเพิ่มเติม หรือแจ้งปัญหาการสั่งซื้อ</div>
+              </div>
+            </div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+              <div style="padding:12px; border-radius:14px; background:var(--primary-50); border:1px solid var(--border);">
+                <div style="font-size:11.5px; font-weight:700; color:var(--muted);">ชื่อร้านค้า</div>
+                <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:2px;">${escapeHTML(state.store.name || 'BNC HayMate')}</div>
+                <div style="font-size:12px; color:var(--muted); margin-top:2px;">${escapeHTML(state.store.tagline || 'Handmade sweet things & bakery')}</div>
+              </div>
+              <div style="padding:12px; border-radius:14px; background:var(--primary-50); border:1px solid var(--border);">
+                <div style="font-size:11.5px; font-weight:700; color:var(--muted);">เวลาให้บริการ</div>
+                <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:2px;">เปิดบริการทุกวัน (24 ชม.)</div>
+                <div style="font-size:12px; color:var(--muted); margin-top:2px;">จัดส่งสินค้าและวนเหรียญรวดเร็ว</div>
+              </div>
+              <div style="padding:12px; border-radius:14px; background:var(--primary-50); border:1px solid var(--border);">
+                <div style="font-size:11.5px; font-weight:700; color:var(--muted);">ช่องทางชำระเงิน</div>
+                <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:2px;">โอนผ่านธนาคาร / พร้อมเพย์</div>
+                <div style="font-size:12px; color:var(--muted); margin-top:2px;">อัปโหลดสลิปตรวจสอบอัตโนมัติ</div>
+              </div>
+            </div>
+          </div>
+        `);
+        view.appendChild(contactSection);
+
       } else if (key === 'products') {
         // Multi-Product Storefront View with Service Switcher
         const enabledCount = (isItemsActive ? 1 : 0) + (isCoinFarmActive ? 1 : 0) + (isGameIdsActive ? 1 : 0);
@@ -9206,39 +9038,22 @@
 
           if (state.storeProductSubTab === 'items' && isItemsActive) {
             // ITEM HAYDAY CATALOG
-            const currentStep = Number(state.store.itemClickStep) || 1;
             const itemBox = el(`
               <div class="card">
                 <div class="flex items-center" style="justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
                   <div>
-                    <div class="card-title">Item HayDay Catalog</div>
-                    <div class="card-sub">แตะสินค้าเพื่อใส่ตะกร้า (Right-click เพื่อลดจำนวน)</div>
+                    <div class="card-title">Menu &amp; Products</div>
+                    <div class="card-sub">Tap item to add to cart</div>
                   </div>
                   <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
-                    <div class="search-wrap" style="max-width:200px">
+                    <div class="search-wrap" style="min-width:180px; max-width:260px; border-radius:24px;">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
-                      <input placeholder="ค้นหาไอเทม..." id="storeSearch"/>
+                      <input placeholder="Search..." id="storeSearch"/>
                     </div>
-                    <select class="select" id="storeCat" style="width:auto">
-                      <option value="">ทุกหมวดหมู่ (All Categories)</option>
-                      ${CATEGORIES.map(c => `<option value="${escapeHTML(c.name)}">${escapeHTML(c.name)}</option>`).join('')}
-                    </select>
-                    <select class="select" id="storeLevel" style="width:auto">
-                      <option value="">ทุกเลเวล (All Levels)</option>
-                      <option value="1-20">Lv. 1 - 20</option>
-                      <option value="21-40">Lv. 21 - 40</option>
-                      <option value="41-60">Lv. 41 - 60</option>
-                      <option value="61-80">Lv. 61 - 80</option>
-                      <option value="81+">Lv. 81+</option>
-                    </select>
-                    <select class="select" id="storeMultiplier" style="width:auto; font-weight:700; color:var(--accent-text);">
-                      <option value="1" ${currentStep === 1 ? 'selected' : ''}>x1 ชิ้น/คลิก</option>
-                      <option value="10" ${currentStep === 10 ? 'selected' : ''}>x10 ชิ้น/คลิก</option>
-                      <option value="80" ${currentStep === 80 ? 'selected' : ''}>x80 ชิ้น/คลิก</option>
-                      <option value="100" ${currentStep === 100 ? 'selected' : ''}>x100 ชิ้น/คลิก</option>
-                    </select>
-                    <button type="button" class="btn btn-sm btn-ghost" id="btnStoreResetFilters" style="padding:6px 12px; font-weight:700; border:1px solid var(--border); border-radius:10px;">
-                      ล้างค่า (Reset)
+                    <div id="storeCatDropdownSlot"></div>
+                    <div id="storeLevelDropdownSlot"></div>
+                    <button type="button" class="btn btn-sm btn-ghost" id="btnStoreResetFilters" style="padding:7px 14px; font-weight:700; border:1.5px solid var(--border); border-radius:20px;">
+                      Reset
                     </button>
                   </div>
                 </div>
@@ -9257,24 +9072,55 @@
             const countEl = itemBox.querySelector('#storeCount');
             const cartInfo = itemBox.querySelector('#storeCartInfo');
             const searchEl = itemBox.querySelector('#storeSearch');
-            const catEl = itemBox.querySelector('#storeCat');
-            const levelEl = itemBox.querySelector('#storeLevel');
-            const multiplierEl = itemBox.querySelector('#storeMultiplier');
             const btnReset = itemBox.querySelector('#btnStoreResetFilters');
             const PAGE = 160;
             let page = 1;
-            let currentMultiplier = Number(multiplierEl.value) || currentStep || 1;
+            let selectedCat = '';
+            let selectedLvl = '';
 
-            multiplierEl.addEventListener('change', () => {
-              currentMultiplier = Number(multiplierEl.value) || 1;
+            // Custom Dropdowns
+            const catOptions = [
+              { value: '', label: 'All categories' },
+              ...CATEGORIES.map(c => ({ value: c.name, label: c.name }))
+            ];
+            const catDropdown = createCustomDropdown({
+              buttonLabel: 'All categories',
+              options: catOptions,
+              selectedValue: selectedCat,
+              onSelect: (val) => {
+                selectedCat = val;
+                page = 1;
+                drawStoreGrid();
+              }
             });
+            itemBox.querySelector('#storeCatDropdownSlot')?.appendChild(catDropdown.element);
+
+            const levelOptions = [
+              { value: '', label: 'All Levels' },
+              { value: '1-20', label: 'Lv. 1 – 20' },
+              { value: '21-40', label: 'Lv. 21 – 40' },
+              { value: '41-60', label: 'Lv. 41 – 60' },
+              { value: '61-80', label: 'Lv. 61 – 80' },
+              { value: '81-100+', label: 'Lv. 81 – 100+' }
+            ];
+            const levelDropdown = createCustomDropdown({
+              buttonLabel: 'All Levels',
+              options: levelOptions,
+              selectedValue: selectedLvl,
+              onSelect: (val) => {
+                selectedLvl = val;
+                page = 1;
+                drawStoreGrid();
+              }
+            });
+            itemBox.querySelector('#storeLevelDropdownSlot')?.appendChild(levelDropdown.element);
 
             btnReset.addEventListener('click', () => {
               searchEl.value = '';
-              catEl.value = '';
-              levelEl.value = '';
-              multiplierEl.value = String(state.store.itemClickStep || 1);
-              currentMultiplier = Number(multiplierEl.value) || 1;
+              selectedCat = '';
+              selectedLvl = '';
+              catDropdown.setValue('');
+              levelDropdown.setValue('');
               page = 1;
               drawStoreGrid();
               toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
@@ -9283,8 +9129,7 @@
             function updateCartInfo() {
               const totalQty = Object.values(state.selected).reduce((a,b)=>a+Number(b||0), 0);
               const totalPrice = Object.entries(state.selected).reduce((sum, [id, q]) => {
-                const it = getCartItemDetails(id);
-                return sum + (it ? Number(it.price) * Number(q) : 0);
+                return sum + calculateCartItemPrice(id, q);
               }, 0);
               cartInfo.innerHTML = totalQty
                 ? `Cart: <strong style="color:var(--text)">${totalQty}</strong> items · <strong style="color:var(--accent-text)">${money(totalPrice)}</strong> (Go to Cart →)`
@@ -9298,8 +9143,8 @@
 
             function drawStoreGrid() {
               const q = searchEl.value.toLowerCase().trim();
-              const cat = catEl.value;
-              const lvl = levelEl.value;
+              const cat = selectedCat;
+              const lvl = selectedLvl;
 
               const list = PRODUCTS.filter(p => {
                 if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
@@ -9310,7 +9155,7 @@
                   if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
                   if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
                   if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
-                  if (lvl === '81+' && pLevel < 81) return false;
+                  if (lvl === '81-100+' && pLevel < 81) return false;
                 }
                 return true;
               });
@@ -9331,10 +9176,11 @@
                 const stockCls = sInfo.dotClass;
                 const qty = state.selected[p.id] || 0;
                 const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
+                const step = getProductClickStep(p);
                 const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
                 const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
                 const tile = el(`
-                  <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1})">
+                  <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1}, สเต็ปคลิกละ ${step} ชิ้น)">
                     ${mediaHtml}
                     <span class="stock-dot"></span>
                     <span class="qty-badge">${qty}</span>
@@ -9342,7 +9188,8 @@
                 `);
                 tile.addEventListener('click', () => {
                   if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-                  state.selected[p.id] = (state.selected[p.id] || 0) + currentMultiplier;
+                  const clickStep = getProductClickStep(p);
+                  state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
                   tile.classList.add('selected');
                   const badge = tile.querySelector('.qty-badge');
                   badge.textContent = state.selected[p.id];
@@ -9353,7 +9200,8 @@
                 tile.addEventListener('contextmenu', (e) => {
                   e.preventDefault();
                   if (!state.selected[p.id]) return;
-                  state.selected[p.id] -= currentMultiplier;
+                  const clickStep = getProductClickStep(p);
+                  state.selected[p.id] -= clickStep;
                   if (state.selected[p.id] <= 0) {
                     delete state.selected[p.id];
                     tile.classList.remove('selected');
@@ -9366,21 +9214,23 @@
                 grid.appendChild(tile);
               });
 
+              if (!list.length) grid.appendChild(el(`<div class="card empty" style="grid-column: 1/-1"><div class="icon">${ICONS.products}</div>No products match your filters.</div>`));
+
               pager.innerHTML = '';
               if (totalPages > 1) {
-                const mk = (label, p2, opts={}) => {
-                  const b = el(`<button class="pg ${opts.active?'active':''}" ${opts.disabled?'disabled style="opacity:.4;cursor:not-allowed"':''}>${label}</button>`);
-                  if (!opts.disabled) b.addEventListener('click', () => { page = p2; drawStoreGrid(); });
+                const mkBtn = (label, pNum, opts = {}) => {
+                  const b = el(`<button class="pg ${opts.active ? 'active' : ''}" ${opts.disabled ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>${label}</button>`);
+                  if (!opts.disabled) b.addEventListener('click', () => { page = pNum; drawStoreGrid(); });
                   return b;
                 };
-                pager.appendChild(mk('‹', page-1, {disabled: page===1}));
-                for (let i=1; i<=totalPages; i++) pager.appendChild(mk(String(i), i, {active: i===page}));
-                pager.appendChild(mk('›', page+1, {disabled: page===totalPages}));
+                pager.appendChild(mkBtn('‹', page - 1, { disabled: page === 1 }));
+                for (let i = 1; i <= totalPages; i++) pager.appendChild(mkBtn(String(i), i, { active: i === page }));
+                pager.appendChild(mkBtn('›', page + 1, { disabled: page === totalPages }));
               }
+              updateCartInfo();
             }
+
             searchEl.addEventListener('input', () => { page = 1; drawStoreGrid(); });
-            catEl.addEventListener('change', () => { page = 1; drawStoreGrid(); });
-            levelEl.addEventListener('change', () => { page = 1; drawStoreGrid(); });
             drawStoreGrid();
             updateCartInfo();
 
