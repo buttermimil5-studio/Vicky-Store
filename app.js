@@ -5343,8 +5343,12 @@
           </div>
 
           ${images.length > 1 ? `
-            <button type="button" class="game-id-gallery-btn prev" id="qvPrev">‹</button>
-            <button type="button" class="game-id-gallery-btn next" id="qvNext">›</button>
+            <button type="button" class="game-id-gallery-btn prev" id="qvPrev" aria-label="Previous">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="game-id-gallery-btn next" id="qvNext" aria-label="Next">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
             <div class="game-id-dots" id="qvDots">
               ${images.map((_, i) => `<div class="game-id-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
             </div>
@@ -9231,8 +9235,12 @@
               </div>
 
               ${BANNERS.length > 1 ? `
-                <button class="carousel-btn prev" id="cPrev" aria-label="Previous">‹</button>
-                <button class="carousel-btn next" id="cNext" aria-label="Next">›</button>
+                <button class="carousel-btn prev" id="cPrev" aria-label="Previous">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button class="carousel-btn next" id="cNext" aria-label="Next">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
               ` : ''}
 
               <div class="carousel-dots" id="cDots">
@@ -9526,8 +9534,12 @@
                           </div>
 
                           ${images.length > 1 ? `
-                            <button type="button" class="game-id-gallery-btn prev btn-hg-prev">‹</button>
-                            <button type="button" class="game-id-gallery-btn next btn-hg-next">›</button>
+                            <button type="button" class="game-id-gallery-btn prev btn-hg-prev" aria-label="Previous">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                            </button>
+                            <button type="button" class="game-id-gallery-btn next btn-hg-next" aria-label="Next">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                            </button>
                             <div class="game-id-dots">
                               ${images.map((_, i) => `<div class="game-id-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
                             </div>
@@ -9920,9 +9932,9 @@
                   if (!opts.disabled) b.addEventListener('click', () => { page = pNum; drawStoreGrid(); });
                   return b;
                 };
-                pager.appendChild(mkBtn('‹', page - 1, { disabled: page === 1 }));
+                pager.appendChild(mkBtn(`<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="m15 18-6-6 6-6"/></svg>`, page - 1, { disabled: page === 1 }));
                 for (let i = 1; i <= totalPages; i++) pager.appendChild(mkBtn(String(i), i, { active: i === page }));
-                pager.appendChild(mkBtn('›', page + 1, { disabled: page === totalPages }));
+                pager.appendChild(mkBtn(`<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="m9 18 6-6-6-6"/></svg>`, page + 1, { disabled: page === totalPages }));
               }
               updateCartInfo();
             }
@@ -10052,8 +10064,12 @@
                       </div>
 
                       ${images.length > 1 ? `
-                        <button type="button" class="game-id-gallery-btn prev btn-pg-prev">‹</button>
-                        <button type="button" class="game-id-gallery-btn next btn-pg-next">›</button>
+                        <button type="button" class="game-id-gallery-btn prev btn-pg-prev" aria-label="Previous">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <button type="button" class="game-id-gallery-btn next btn-pg-next" aria-label="Next">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
                         <div class="game-id-dots">
                           ${images.map((_, i) => `<div class="game-id-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
                         </div>
