@@ -12,8 +12,8 @@
   // ============================================================
   // PART 1: Supabase Configuration
   // ============================================================
-  const SUPABASE_URL = 'https://zxoahkhgnefgdsyaiyvx.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4b2Foa2hnbmVmZ2RzeWFpeXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE3MzAsImV4cCI6MjEwMzA3NzczMH0.XozerRxX0YYCQg9oG49BmQN6JIiCDas8k1lGMtzJsOo';
+  const SUPABASE_URL = 'https://hlozqirvgnjzsrrtpzrh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsb3pxaXJ2Z25qenNycnRwenJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDE1NjIsImV4cCI6MjEwMzA3NzU2Mn0.ZvW6oSDno7JdXD5a1pZw4-OYq1hZPkJuDa2_POuRWNA';
   
   let supabase = null;
   function initSupabase() {
@@ -347,6 +347,8 @@
       { id: 1, name: 'Line OA', link: 'https://line.me/R/ti/p/@bnchaymate', image: '', icon: '💬' },
       { id: 2, name: 'Facebook', link: 'https://facebook.com', image: '', icon: '📘' }
     ],
+    // Farm Tag Guide Image (1:1 Guide Modal)
+    farmTagGuideImage: '',
     // Heart Rating Labels (Customizable in Settings)
     starLabel1: '1 ดวงใจ - ต้องปรับปรุง',
     starLabel2: '2 ดวงใจ - พอใช้ได้',
@@ -448,8 +450,13 @@
     clearedOrderNotifIds: (() => {
       try {
         const raw = JSON.parse(localStorage.getItem('haypos_cleared_order_notifs') || '[]');
-        return Array.isArray(raw) ? new Set(raw) : new Set();
+        return Array.isArray(raw) ? new Set(raw.map(String)) : new Set();
       } catch (e) { return new Set(); }
+    })(),
+    lastNotifClearTime: (() => {
+      try {
+        return Number(localStorage.getItem('haypos_last_notif_clear_time') || 0);
+      } catch (e) { return 0; }
     })(),
     deviceId: initialDeviceId,
     liveOnlineUsers: [],
@@ -461,6 +468,7 @@
       localStorage.setItem('haypos_cleared_order_notifs', JSON.stringify(Array.from(state.clearedOrderNotifIds)));
       localStorage.setItem('haypos_cleared_stock_notifs', JSON.stringify(Array.from(state.clearedNotifProductIds)));
       localStorage.setItem('haypos_recent_order_notifs', JSON.stringify((state.recentOrderNotifs || []).slice(0, 50)));
+      localStorage.setItem('haypos_last_notif_clear_time', String(state.lastNotifClearTime || 0));
     } catch (e) {}
   }
 
@@ -686,19 +694,21 @@
 
   function notifyNewOrder(order) {
     if (!order) return;
+    const orderTimestamp = order.timestamp || (order.date ? new Date(order.date).getTime() : Date.now()) || Date.now();
+    const orderIdStr = String(order.id);
     const notifItem = {
-      id: order.id,
+      id: orderIdStr,
       customer: order.customer || 'Customer',
       total: Number(order.total || 0),
       items: order.items || 1,
-      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-      timestamp: Date.now()
+      time: new Date(orderTimestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: orderTimestamp
     };
-    state.clearedOrderNotifIds.delete(order.id);
-    if (!state.recentOrderNotifs.some(x => String(x.id) === String(notifItem.id))) {
-      state.recentOrderNotifs.unshift(notifItem);
-      if (state.recentOrderNotifs.length > 50) state.recentOrderNotifs.pop();
-    }
+    state.clearedOrderNotifIds.delete(orderIdStr);
+    state.recentOrderNotifs = (state.recentOrderNotifs || []).filter(x => String(x.id) !== orderIdStr);
+    state.recentOrderNotifs.unshift(notifItem);
+    state.recentOrderNotifs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (state.recentOrderNotifs.length > 50) state.recentOrderNotifs.length = 50;
     saveNotifsState();
 
     // Notify only if Admin is active; Customer sees only their own checkout success toast
@@ -721,8 +731,12 @@
 
     const lowThresh = Number(state.store && state.store.stockLowThreshold !== undefined ? state.store.stockLowThreshold : 100);
     const lowProducts = PRODUCTS.filter(p => p.stock < lowThresh);
-    const activeStockAlerts = lowProducts.filter(p => !state.clearedNotifProductIds.has(p.id));
-    const activeOrderAlerts = (state.recentOrderNotifs || []).filter(o => !state.clearedOrderNotifIds.has(o.id));
+    const activeStockAlerts = lowProducts.filter(p => !state.clearedNotifProductIds.has(String(p.id)) && !state.clearedNotifProductIds.has(p.id));
+    
+    // Always sort descending by timestamp so newest notifications are on top
+    const activeOrderAlerts = (state.recentOrderNotifs || [])
+      .filter(o => !state.clearedOrderNotifIds.has(String(o.id)))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     const totalCount = activeStockAlerts.length + activeOrderAlerts.length;
 
@@ -750,7 +764,7 @@
       } else {
         let html = '';
 
-        // 1. New Orders Section
+        // 1. New Orders Section (Newest on top)
         if (activeOrderAlerts.length > 0) {
           html += `
             <div style="font-size:11.5px; font-weight:800; color:var(--text); padding:4px 2px; display:flex; align-items:center; gap:6px;">
@@ -830,8 +844,9 @@
         notifList.querySelectorAll('.btn-notif-dismissorder').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const oid = btn.dataset.oid;
+            const oid = String(btn.dataset.oid);
             state.clearedOrderNotifIds.add(oid);
+            state.recentOrderNotifs = (state.recentOrderNotifs || []).filter(x => String(x.id) !== oid);
             saveNotifsState();
             updateStockNotifications();
             toast('ลบการแจ้งเตือนออเดอร์นี้แล้ว', 'info');
@@ -851,7 +866,7 @@
         notifList.querySelectorAll('.btn-notif-dismiss').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const pid = btn.dataset.id;
+            const pid = String(btn.dataset.id);
             state.clearedNotifProductIds.add(pid);
             saveNotifsState();
             updateStockNotifications();
@@ -884,10 +899,12 @@
     if (btnClearNotifs) {
       btnClearNotifs.addEventListener('click', (e) => {
         e.stopPropagation();
+        state.lastNotifClearTime = Date.now();
         const lowThresh = Number(state.store && state.store.stockLowThreshold !== undefined ? state.store.stockLowThreshold : 100);
         const lowProducts = PRODUCTS.filter(p => p.stock < lowThresh);
-        lowProducts.forEach(p => state.clearedNotifProductIds.add(p.id));
-        (state.recentOrderNotifs || []).forEach(o => state.clearedOrderNotifIds.add(o.id));
+        lowProducts.forEach(p => state.clearedNotifProductIds.add(String(p.id)));
+        (state.recentOrderNotifs || []).forEach(o => state.clearedOrderNotifIds.add(String(o.id)));
+        state.recentOrderNotifs = [];
         saveNotifsState();
         updateStockNotifications();
         toast('ล้างการแจ้งเตือนทั้งหมดแล้ว', 'success');
@@ -972,6 +989,162 @@
         { label: 'Confirm', kind: 'primary', onClick: onYes }
       ]
     });
+  }
+
+  // 1:1 Vector Illustration for Hay Day Farm Tag Guide (Zero emojis, clean and intuitive)
+  const DEFAULT_FARM_TAG_GUIDE_SVG = `data:image/svg+xml;utf8,` + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+      <defs>
+        <linearGradient id="ftgBg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#FFFDF7" />
+          <stop offset="100%" stop-color="#F6EEDB" />
+        </linearGradient>
+        <filter id="ftgShadow" x="-5%" y="-5%" width="110%" height="110%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+        </filter>
+      </defs>
+      <rect width="500" height="500" rx="36" fill="url(#ftgBg)" stroke="#E8DAC1" stroke-width="4"/>
+      
+      <!-- Top Section (Hay Day Friend Book Header) -->
+      <g filter="url(#ftgShadow)">
+        <rect x="50" y="42" width="400" height="66" rx="16" fill="#78B6E8" stroke="#4B95D1" stroke-width="3"/>
+        <path d="M 85 60 C 85 56, 95 54, 115 56 C 125 57, 130 60, 130 84 C 120 82, 105 81, 85 84 Z" fill="#FFFFFF"/>
+        <path d="M 175 60 C 175 56, 165 54, 145 56 C 135 57, 130 60, 130 84 C 140 82, 155 81, 175 84 Z" fill="#FFFFFF"/>
+        <rect x="200" y="58" width="180" height="30" rx="8" fill="#FFFFFF" opacity="0.9"/>
+        <rect x="220" y="66" width="140" height="14" rx="7" fill="#4B95D1"/>
+      </g>
+
+      <!-- Center Showcase Card (Farm Profile & Farm Tag Location) -->
+      <g filter="url(#ftgShadow)">
+        <rect x="50" y="130" width="400" height="235" rx="22" fill="#FFFFFF" stroke="#E3D1B4" stroke-width="3"/>
+        
+        <!-- Farm Avatar Circle -->
+        <circle cx="120" cy="205" r="42" fill="#FFE27A" stroke="#E5B834" stroke-width="3"/>
+        <circle cx="120" cy="195" r="18" fill="#78553D"/>
+        <path d="M 98 235 C 98 215, 142 215, 142 235" fill="#78553D"/>
+
+        <!-- Level Badge -->
+        <circle cx="146" cy="235" r="14" fill="#4DA8DF" stroke="#FFFFFF" stroke-width="2"/>
+        <text x="146" y="240" font-size="12" font-family="Arial, sans-serif" font-weight="900" fill="#FFFFFF" text-anchor="middle">75</text>
+
+        <!-- Farm Name Placeholder Bar -->
+        <rect x="185" y="172" width="180" height="20" rx="6" fill="#654321"/>
+        
+        <!-- Highlighted Farm Tag Box -->
+        <rect x="185" y="206" width="230" height="48" rx="10" fill="#FFF8E7" stroke="#EFA6C1" stroke-width="3"/>
+        <text x="200" y="238" font-size="22" font-family="'Courier New', monospace, sans-serif" font-weight="900" fill="#D84A6E" letter-spacing="2">#288CGPV90</text>
+        
+        <!-- Pointer Arrow -->
+        <path d="M 330 330 L 310 270 L 340 280 Z" fill="#EFA6C1"/>
+        <path d="M 330 330 Q 365 360 405 330" fill="none" stroke="#EFA6C1" stroke-width="5" stroke-linecap="round" stroke-dasharray="6,6"/>
+      </g>
+
+      <!-- Bottom Steps (No text, pure icon flow) -->
+      <g filter="url(#ftgShadow)">
+        <rect x="50" y="385" width="400" height="72" rx="16" fill="#FFFFFF" stroke="#E3D1B4" stroke-width="3"/>
+        
+        <!-- Step 1 Icon -->
+        <circle cx="95" cy="421" r="18" fill="#4DA8DF"/>
+        <text x="95" y="427" font-size="16" font-family="Arial, sans-serif" font-weight="900" fill="#FFFFFF" text-anchor="middle">1</text>
+        <rect x="125" y="414" width="45" height="14" rx="4" fill="#B3D7F3"/>
+
+        <!-- Arrow -->
+        <path d="M 195 421 L 215 421 M 210 415 L 217 421 L 210 427" fill="none" stroke="#A89F91" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- Step 2 Icon -->
+        <circle cx="255" cy="421" r="18" fill="#7CC59A"/>
+        <text x="255" y="427" font-size="16" font-family="Arial, sans-serif" font-weight="900" fill="#FFFFFF" text-anchor="middle">2</text>
+        <rect x="285" y="409" width="80" height="24" rx="6" fill="#FDE2E8" stroke="#EFA6C1" stroke-width="2"/>
+        <text x="325" y="426" font-size="13" font-family="'Courier New', monospace" font-weight="900" fill="#D84A6E" text-anchor="middle">#TAG</text>
+
+        <!-- Checkmark -->
+        <circle cx="410" cy="421" r="15" fill="#3F8E63"/>
+        <path d="M 403 421 L 408 426 L 418 415" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </svg>
+  `);
+
+  function openFarmTagGuideModal() {
+    const root = $('#modalRoot');
+    if (!root) return;
+    if (modalCloseTimer) {
+      clearTimeout(modalCloseTimer);
+      modalCloseTimer = null;
+    }
+    root.innerHTML = '';
+    const guideSrc = state.store.farmTagGuideImage || DEFAULT_FARM_TAG_GUIDE_SVG;
+    const modal = el(`
+      <div>
+        <div class="modal-backdrop"></div>
+        <div class="modal" style="max-width:440px; padding:16px; border-radius:24px;">
+          <div class="farm-tag-modal-box">
+            <div class="farm-tag-img-wrap">
+              <img src="${escapeHTML(guideSrc)}" alt="Farm Tag Guide" onerror="this.src='${DEFAULT_FARM_TAG_GUIDE_SVG}'" />
+            </div>
+            <button type="button" class="farm-tag-close-btn" id="btnCloseFarmTagModal">ปิด</button>
+          </div>
+        </div>
+      </div>
+    `);
+    root.appendChild(modal);
+    requestAnimationFrame(() => root.classList.add('open'));
+    modal.querySelector('#btnCloseFarmTagModal')?.addEventListener('click', closeModal);
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal);
+  }
+
+  // Cross-Platform Image Downloader with iOS / iPad Support
+  async function downloadImageFile(urlOrBase64, filename) {
+    if (!urlOrBase64) return;
+    try {
+      if (urlOrBase64.startsWith('data:')) {
+        const parts = urlOrBase64.split(',');
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename || 'Payment-Slip.png';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }, 1500);
+        toast('ดาวน์โหลดรูปภาพสลิปเรียบร้อย', 'success');
+        return;
+      }
+
+      // Fetch remote URL as blob (handles cross-origin storage URLs)
+      const res = await fetch(urlOrBase64, { mode: 'cors' });
+      if (!res.ok) throw new Error('Fetch status: ' + res.status);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || 'Payment-Slip.png';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 1500);
+      toast('ดาวน์โหลดรูปภาพสลิปเรียบร้อย', 'success');
+    } catch (err) {
+      console.warn('Direct blob download failed, opening in new tab for iOS/iPad save', err);
+      const w = window.open(urlOrBase64, '_blank');
+      if (w) {
+        toast('เปิดรูปภาพสลิปแล้ว (แตะค้างที่รูปเพื่อบันทึก)', 'info');
+      } else {
+        window.location.href = urlOrBase64;
+      }
+    }
   }
 
   // ============================================================
@@ -1115,21 +1288,28 @@
         persistOrders();
 
         // Populate unread waiting order notifications for offline admin catch-up
-        ORDERS.forEach(ord => {
-          if (ord.status === 'waiting' && !state.clearedOrderNotifIds.has(ord.id)) {
+        const sortedOrders = [...ORDERS].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        sortedOrders.forEach(ord => {
+          const orderIdStr = String(ord.id);
+          const orderTime = (ord.date ? new Date(ord.date).getTime() : 0);
+          if (ord.status === 'waiting' && !state.clearedOrderNotifIds.has(orderIdStr)) {
+            if (state.lastNotifClearTime && orderTime && orderTime <= state.lastNotifClearTime) {
+              return;
+            }
             const notifItem = {
-              id: ord.id,
+              id: orderIdStr,
               customer: ord.customer || 'Customer',
               total: Number(ord.total || 0),
               items: ord.items || 1,
               time: ord.date || new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-              timestamp: Date.now()
+              timestamp: orderTime || Date.now()
             };
-            if (!state.recentOrderNotifs.some(x => String(x.id) === String(ord.id))) {
-              state.recentOrderNotifs.unshift(notifItem);
+            if (!state.recentOrderNotifs.some(x => String(x.id) === orderIdStr)) {
+              state.recentOrderNotifs.push(notifItem);
             }
           }
         });
+        state.recentOrderNotifs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         if (state.recentOrderNotifs.length > 50) state.recentOrderNotifs.length = 50;
         saveNotifsState();
         updateStockNotifications();
@@ -2885,7 +3065,7 @@
             </div>
             ${allStatusList.map(sKey => `
               <div class="multi-dropdown-item" data-status="${sKey}">
-                <span class="circle-checkbox checked" data-admin-status-chk="${sKey}">✓</span>
+                <span class="circle-checkbox" data-admin-status-chk="${sKey}"></span>
                 <span>${escapeHTML(statusLabels[sKey] || sKey)}</span>
               </div>
             `).join('')}
@@ -2918,25 +3098,40 @@
         const st = item.dataset.status;
         if (st === '__ALL__') {
           selectedStatuses.clear();
-          statusMenu.querySelectorAll('[data-admin-status-chk]').forEach(c => c.classList.add('checked'));
+          statusMenu.querySelectorAll('[data-admin-status-chk]').forEach(c => {
+            c.classList.remove('checked');
+            c.textContent = '';
+          });
           chkStatusAll.classList.add('checked');
+          chkStatusAll.textContent = '✓';
           statusLabel.textContent = 'All statuses';
         } else {
+          const chk = item.querySelector('.circle-checkbox');
           if (selectedStatuses.has(st)) {
             selectedStatuses.delete(st);
-            item.querySelector('.circle-checkbox')?.classList.remove('checked');
+            if (chk) { chk.classList.remove('checked'); chk.textContent = ''; }
           } else {
             selectedStatuses.add(st);
-            item.querySelector('.circle-checkbox')?.classList.add('checked');
+            if (chk) { chk.classList.add('checked'); chk.textContent = '✓'; }
           }
           const allChecked = selectedStatuses.size === 0 || selectedStatuses.size === allStatusList.length;
-          chkStatusAll.classList.toggle('checked', allChecked);
-          if (selectedStatuses.size === 0) {
+          if (allChecked) {
+            selectedStatuses.clear();
+            statusMenu.querySelectorAll('[data-admin-status-chk]').forEach(c => {
+              c.classList.remove('checked');
+              c.textContent = '';
+            });
+            chkStatusAll.classList.add('checked');
+            chkStatusAll.textContent = '✓';
             statusLabel.textContent = 'All statuses';
-          } else if (selectedStatuses.size === 1) {
-            statusLabel.textContent = statusLabels[Array.from(selectedStatuses)[0]] || Array.from(selectedStatuses)[0];
           } else {
-            statusLabel.textContent = `สถานะ (${selectedStatuses.size})`;
+            chkStatusAll.classList.remove('checked');
+            chkStatusAll.textContent = '';
+            if (selectedStatuses.size === 1) {
+              statusLabel.textContent = statusLabels[Array.from(selectedStatuses)[0]] || Array.from(selectedStatuses)[0];
+            } else {
+              statusLabel.textContent = `สถานะ (${selectedStatuses.size})`;
+            }
           }
         }
         renderList();
@@ -3503,9 +3698,9 @@
               <img src="${slipImgSrc}" alt="Payment Slip" style="max-height:260px; max-width:100%; border-radius:8px; object-fit:contain; margin:0 auto; display:block; box-shadow:var(--shadow-soft);" />
             </div>
             
-            <a href="${slipImgSrc}" download="Payment-Slip-${o.id}.png" class="btn btn-primary btn-block mt-3" style="text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;">
+            <button type="button" class="btn btn-primary btn-block mt-3" id="btnAdminDownloadSlip" style="text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;">
               ดาวน์โหลดสลิป (Download Slip)
-            </a>
+            </button>
           ` : `
             <div style="text-align:center; padding:24px 16px; color:var(--muted); background:var(--primary-50); border:1px dashed var(--border); border-radius:12px; margin-top:8px;">
               <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" style="margin:0 auto 6px; display:block; color:var(--muted);"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
@@ -3516,6 +3711,10 @@
         </div>
       </div>
     `));
+
+    grid.querySelector('#btnAdminDownloadSlip')?.addEventListener('click', () => {
+      downloadImageFile(slipImgSrc, `Payment-Slip-${o.id}.png`);
+    });
 
     grid.querySelectorAll('.btn-copy-farmtag').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -3582,7 +3781,7 @@
             </div>
             ${CATEGORIES.map(c => `
               <div class="multi-dropdown-item" data-cat="${escapeHTML(c.name)}">
-                <span class="circle-checkbox checked" data-admin-prod-cat-chk="${escapeHTML(c.name)}">✓</span>
+                <span class="circle-checkbox" data-admin-prod-cat-chk="${escapeHTML(c.name)}"></span>
                 <span>${escapeHTML(c.name)}</span>
               </div>
             `).join('')}
@@ -3615,25 +3814,40 @@
         const cat = item.dataset.cat;
         if (cat === '__ALL__') {
           selectedAdminCats.clear();
-          prodCatMenu.querySelectorAll('[data-admin-prod-cat-chk]').forEach(c => c.classList.add('checked'));
+          prodCatMenu.querySelectorAll('[data-admin-prod-cat-chk]').forEach(c => {
+            c.classList.remove('checked');
+            c.textContent = '';
+          });
           chkAdminProdCatAll.classList.add('checked');
+          chkAdminProdCatAll.textContent = '✓';
           prodCatLabel.textContent = 'All categories';
         } else {
+          const chk = item.querySelector('.circle-checkbox');
           if (selectedAdminCats.has(cat)) {
             selectedAdminCats.delete(cat);
-            item.querySelector('.circle-checkbox')?.classList.remove('checked');
+            if (chk) { chk.classList.remove('checked'); chk.textContent = ''; }
           } else {
             selectedAdminCats.add(cat);
-            item.querySelector('.circle-checkbox')?.classList.add('checked');
+            if (chk) { chk.classList.add('checked'); chk.textContent = '✓'; }
           }
           const allChecked = selectedAdminCats.size === 0 || selectedAdminCats.size === CATEGORIES.length;
-          chkAdminProdCatAll.classList.toggle('checked', allChecked);
-          if (selectedAdminCats.size === 0) {
+          if (allChecked) {
+            selectedAdminCats.clear();
+            prodCatMenu.querySelectorAll('[data-admin-prod-cat-chk]').forEach(c => {
+              c.classList.remove('checked');
+              c.textContent = '';
+            });
+            chkAdminProdCatAll.classList.add('checked');
+            chkAdminProdCatAll.textContent = '✓';
             prodCatLabel.textContent = 'All categories';
-          } else if (selectedAdminCats.size === 1) {
-            prodCatLabel.textContent = Array.from(selectedAdminCats)[0];
           } else {
-            prodCatLabel.textContent = `หมวดหมู่ (${selectedAdminCats.size})`;
+            chkAdminProdCatAll.classList.remove('checked');
+            chkAdminProdCatAll.textContent = '';
+            if (selectedAdminCats.size === 1) {
+              prodCatLabel.textContent = Array.from(selectedAdminCats)[0];
+            } else {
+              prodCatLabel.textContent = `หมวดหมู่ (${selectedAdminCats.size})`;
+            }
           }
         }
         currentPage = 1;
@@ -5117,7 +5331,10 @@
                   <td><strong style="font-size:14px; color:var(--accent-text);">${money(c.totalSpend)}</strong></td>
                   <td><span class="badge ${c.tag === 'VIP' ? '' : c.tag === 'Regular' ? 'info' : 'success'}">${c.tag}</span></td>
                   <td style="text-align:right; white-space:nowrap;">
-                    <button class="btn btn-sm btn-view-cust" data-key="${escapeHTML(c.key)}">View</button>
+                    <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+                      <button type="button" class="btn btn-sm btn-view-cust" data-key="${escapeHTML(c.key)}">View</button>
+                      <button type="button" class="btn btn-sm btn-danger btn-delete-cust-row" data-key="${escapeHTML(c.key)}" title="ลบรายชื่อลูกค้า">Delete</button>
+                    </div>
                   </td>
                 </tr>`).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">${ICONS.customers}</div>No customer records found.</div></td></tr>`}
             </tbody>
@@ -5130,8 +5347,19 @@
 
     listCard.querySelectorAll('tbody tr').forEach(tr => {
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-copy-cust-tag-row')) return;
+        if (e.target.closest('.btn-copy-cust-tag-row') || e.target.closest('.btn-delete-cust-row')) return;
         openCustomerModal(tr.dataset.key);
+      });
+    });
+
+    listCard.querySelectorAll('.btn-delete-cust-row').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.key;
+        const cust = aggCustomers.find(x => x.key === key);
+        if (cust) {
+          openDeleteCustomerModal(cust, () => PAGES.customers(root));
+        }
       });
     });
 
@@ -5154,6 +5382,154 @@
       });
     });
   };
+
+  function openDeleteCustomerModal(customer, onSuccess) {
+    if (!customer) return;
+    const deletePin = String(MASTER_DELETE_PIN || '888888');
+    let enteredCode = '';
+
+    const body = el(`
+      <div class="calc-pin-card">
+        <div style="background:rgba(229,139,148,0.12); border:1.5px solid var(--danger); border-radius:14px; padding:12px; display:flex; gap:10px; align-items:flex-start; text-align:left; margin-bottom:14px;">
+          <div style="color:var(--danger); font-size:20px; flex:none; margin-top:1px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:800; font-size:13px; color:var(--danger);">ยืนยันการลบรายชื่อลูกค้า: ${escapeHTML(customer.name)}</div>
+            <div style="font-size:11.5px; color:var(--muted); line-height:1.4; margin-top:2px;">
+              การลบจะนำรายชื่อลูกค้านี้ออกจากฐานข้อมูลอย่างถาวร (ต้องใส่รหัสผ่าน Master PIN เพื่อยืนยัน)
+            </div>
+          </div>
+        </div>
+
+        <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px;">
+          กรุณากดรหัสความปลอดภัยสำหรับการลบ (Master PIN) *
+        </div>
+
+        <!-- Calculator Display Screen -->
+        <div class="calc-screen" id="delCustCalcScreen">
+          <div class="calc-dots" id="delCustDotsRow">
+            <span class="calc-dot"></span>
+            <span class="calc-dot"></span>
+            <span class="calc-dot"></span>
+            <span class="calc-dot"></span>
+            <span class="calc-dot"></span>
+            <span class="calc-dot"></span>
+          </div>
+        </div>
+
+        <!-- Calculator Round Keypad -->
+        <div class="calc-keypad">
+          <button type="button" class="calc-key" data-k="1">1</button>
+          <button type="button" class="calc-key" data-k="2">2</button>
+          <button type="button" class="calc-key" data-k="3">3</button>
+          <button type="button" class="calc-key" data-k="4">4</button>
+          <button type="button" class="calc-key" data-k="5">5</button>
+          <button type="button" class="calc-key" data-k="6">6</button>
+          <button type="button" class="calc-key" data-k="7">7</button>
+          <button type="button" class="calc-key" data-k="8">8</button>
+          <button type="button" class="calc-key" data-k="9">9</button>
+          <button type="button" class="calc-key calc-key-action" data-k="clear">C</button>
+          <button type="button" class="calc-key" data-k="0">0</button>
+          <button type="button" class="calc-key calc-key-del" data-k="del">⌫</button>
+        </div>
+
+        <div style="margin-top: 14px; font-size: 11.5px; color: var(--muted);">
+          รหัสลบถูกเก็บเป็นความลับในโค้ดระบบ
+        </div>
+      </div>
+    `);
+
+    function updateDelDots() {
+      const dots = body.querySelectorAll('.calc-dot');
+      dots.forEach((d, idx) => {
+        if (idx < enteredCode.length) d.classList.add('filled');
+        else d.classList.remove('filled');
+      });
+    }
+
+    const executeDelete = async () => {
+      const isMatch = (enteredCode === deletePin);
+      if (!isMatch) {
+        const dots = body.querySelectorAll('.calc-dot');
+        dots.forEach(dot => dot.classList.add('error'));
+        toast('รหัสผ่านความปลอดภัยสำหรับการลบไม่ถูกต้อง!', 'error');
+        setTimeout(() => {
+          enteredCode = '';
+          dots.forEach(dot => { dot.classList.remove('filled'); dot.classList.remove('error'); });
+        }, 450);
+        return;
+      }
+
+      // 1. Remove from CUSTOMERS
+      const cName = (customer.name || '').trim().toLowerCase();
+      const cTag = (customer.farm_tag || '').trim().toLowerCase();
+      CUSTOMERS = CUSTOMERS.filter(x => {
+        const xn = (x.name || '').trim().toLowerCase();
+        const xt = (x.tag || x.address || '').trim().toLowerCase();
+        if (cTag && xt === cTag) return false;
+        if (xn === cName) return false;
+        return true;
+      });
+      persistCustomers();
+
+      // 2. Remove associated orders from ORDERS so customer aggregation doesn't resurrect them
+      ORDERS = ORDERS.filter(o => {
+        const on = (o.customer || '').trim().toLowerCase();
+        const ot = (o.farm_tag || '').trim().toLowerCase();
+        if (cTag && ot === cTag) return false;
+        if (on === cName) return false;
+        return true;
+      });
+      persistOrders();
+
+      // 3. Delete from Supabase if active
+      if (supabase) {
+        try {
+          if (customer.id) {
+            await supabase.from('customers').delete().eq('id', customer.id);
+          }
+          if (customer.name) {
+            await supabase.from('customers').delete().eq('name', customer.name);
+          }
+        } catch (e) {
+          console.warn('Supabase customer delete err', e);
+        }
+      }
+
+      toast(`ลบรายชื่อลูกค้า "${customer.name}" เรียบร้อยแล้ว`, 'success');
+      closeModal();
+      if (onSuccess) onSuccess();
+    };
+
+    body.querySelectorAll('.calc-key').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const k = btn.dataset.k;
+        if (k === 'clear') {
+          enteredCode = '';
+          updateDelDots();
+        } else if (k === 'del') {
+          enteredCode = enteredCode.slice(0, -1);
+          updateDelDots();
+        } else if (/^\d$/.test(k)) {
+          if (enteredCode.length < 6) {
+            enteredCode += k;
+            updateDelDots();
+            if (enteredCode.length === 6) {
+              setTimeout(executeDelete, 120);
+            }
+          }
+        }
+      });
+    });
+
+    openModal({
+      title: 'Delete Customer Verification',
+      body,
+      actions: [{ label: 'Cancel', kind: 'ghost' }]
+    });
+  }
 
   function openCustomerModal(keyOrName) {
     const aggCustomers = getAggregatedCustomers();
@@ -5286,7 +5662,15 @@
     openModal({
       title: 'Customer Profile',
       body,
-      actions: [{ label: 'Close', kind: 'ghost' }]
+      actions: [
+        { label: 'Close', kind: 'ghost' },
+        { label: 'Delete Profile', kind: 'danger', onClick: () => {
+          openDeleteCustomerModal(c, () => {
+            closeModal();
+            if (state.page === 'customers') PAGES.customers(state.pageRoot || $('#page'));
+          });
+        }}
+      ]
     });
   }
 
@@ -5989,6 +6373,7 @@
     let currentReceiptFooterImage = state.store.receiptFooterImage || '';
     let currentQrPaymentImage = state.store.qr_image_url || '';
     let currentHomeMascotImage = state.store.homeMascotImage || '';
+    let currentFarmTagGuideImage = state.store.farmTagGuideImage || '';
     let currentAnnImage = state.store.announcementImage || '';
     let currentHighlights = JSON.parse(JSON.stringify(state.store.highlights || DEFAULT_STORE_CONFIG.highlights));
     let currentPaymentAccounts = JSON.parse(JSON.stringify(state.store.payment_accounts || DEFAULT_STORE_CONFIG.payment_accounts));
@@ -6181,7 +6566,7 @@
           <div style="background:var(--primary-50); padding:14px; border-radius:14px; border:1px solid var(--border); margin-top:10px; margin-bottom:14px;">
             <div style="font-weight:700; font-size:13.5px; margin-bottom:8px; color:var(--text);">รูปภาพมาสคอตร้าน (Mascot Avatar Circle)</div>
             <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
-              <div style="width:54px; height:54px; border-radius:50%; overflow:hidden; border:2px dashed var(--primary-600); background:var(--card); display:grid; place-items:center; flex:none;">
+              <div style="width:54px; height:54px; border-radius:50%; overflow:hidden; border:2.5px solid var(--card, #FFFFFF); box-shadow: 0 0 0 1.5px var(--primary, #F8BFD4); background:var(--card); display:grid; place-items:center; flex:none;">
                 <img id="homeMascotImgPreview" src="${escapeHTML(currentHomeMascotImage)}" style="width:100%; height:100%; object-fit:cover; display:${currentHomeMascotImage ? 'block' : 'none'};" onerror="this.style.display='none';" />
                 <span id="homeMascotImgFallback" style="font-size:22px; display:${currentHomeMascotImage ? 'none' : 'block'};">${escapeHTML(state.store.homeMascotEmoji || '🌸')}</span>
               </div>
@@ -6227,6 +6612,28 @@
             <div class="field">
               <label>ลิงก์ติดต่อร้าน (Contact Link / URL)</label>
               <input class="input" id="setTrackingContactUrl" value="${escapeHTML(state.store.trackingContactUrl || 'https://line.me/R/ti/p/@bnchaymate')}" placeholder="เช่น https://line.me/R/ti/p/@bnchaymate หรือ https://m.me/..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 4.9: Farm Tag Guide Image (Checkout Modal) -->
+        <div class="card">
+          <div class="card-title">Farm Tag Guide Image (รูปภาพแนะนำวิธีดูแท็กฟาร์มในหน้า Checkout)</div>
+          <div class="card-sub">กำหนดรูปภาพ 1:1 สำหรับแสดงใน Popup เมื่อลูกค้ากดปุ่ม "วิธีดูแท็กฟาร์ม" ในหน้าสั่งซื้อ (หากไม่ใส่จะใช้ภาพประกอบมาตรฐานของระบบ)</div>
+          
+          <div style="background:var(--primary-50); padding:14px; border-radius:14px; border:1px solid var(--border); margin-top:12px;">
+            <div style="display:flex; gap:12px; align-items:center;">
+              <div style="width:54px; height:54px; border-radius:12px; overflow:hidden; border:2px dashed var(--primary-600); background:var(--card); display:grid; place-items:center; flex:none;">
+                <img id="farmTagGuideImgPreview" src="${escapeHTML(currentFarmTagGuideImage || DEFAULT_FARM_TAG_GUIDE_SVG)}" style="width:100%; height:100%; object-fit:cover;" />
+              </div>
+              <div style="flex:1;">
+                <input type="file" id="fileFarmTagGuide" accept="image/*" style="display:none;" />
+                <div class="flex gap-2">
+                  <button type="button" class="btn btn-sm" id="btnUploadFarmTagGuide" style="font-size:11.5px; padding:5px 12px; font-weight:700;">อัปโหลดรูปภาพ (1:1)</button>
+                  <button type="button" class="btn btn-sm btn-ghost" id="btnClearFarmTagGuide" style="font-size:11.5px; padding:5px 8px; color:var(--danger); display:${currentFarmTagGuideImage ? 'inline-block' : 'none'};">ใช้รูปภาพเริ่มต้น</button>
+                </div>
+                <input class="input" id="setFarmTagGuideImgUrl" value="${escapeHTML(currentFarmTagGuideImage)}" placeholder="หรือวาง URL รูปภาพ เช่น https://..." style="font-size:12px; margin-top:6px;" />
+              </div>
             </div>
           </div>
         </div>
@@ -7490,6 +7897,43 @@
       toast('ลบรูปภาพไอคอนประกาศแล้ว', 'info');
     });
 
+    // Farm Tag Guide Image Handlers (Checkout 1:1 Modal)
+    const fileFarmTagGuide = formWrap.querySelector('#fileFarmTagGuide');
+    const btnUploadFarmTagGuide = formWrap.querySelector('#btnUploadFarmTagGuide');
+    const btnClearFarmTagGuide = formWrap.querySelector('#btnClearFarmTagGuide');
+    const farmTagGuideImgPreview = formWrap.querySelector('#farmTagGuideImgPreview');
+    const farmTagGuideUrlInp = formWrap.querySelector('#setFarmTagGuideImgUrl');
+
+    btnUploadFarmTagGuide?.addEventListener('click', () => fileFarmTagGuide?.click());
+    fileFarmTagGuide?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        currentFarmTagGuideImage = await uploadProductImage(file);
+        if (farmTagGuideImgPreview) farmTagGuideImgPreview.src = currentFarmTagGuideImage;
+        if (btnClearFarmTagGuide) btnClearFarmTagGuide.style.display = 'inline-block';
+        if (farmTagGuideUrlInp) farmTagGuideUrlInp.value = currentFarmTagGuideImage;
+        toast('อัปโหลดรูปภาพแนะนำแท็กฟาร์มเรียบร้อย', 'success');
+      } catch (err) {
+        toast('อัปโหลดไม่สำเร็จ: ' + (err.message || err), 'error');
+      }
+    });
+
+    farmTagGuideUrlInp?.addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      currentFarmTagGuideImage = val;
+      if (farmTagGuideImgPreview) farmTagGuideImgPreview.src = val || DEFAULT_FARM_TAG_GUIDE_SVG;
+      if (btnClearFarmTagGuide) btnClearFarmTagGuide.style.display = val ? 'inline-block' : 'none';
+    });
+
+    btnClearFarmTagGuide?.addEventListener('click', () => {
+      currentFarmTagGuideImage = '';
+      if (farmTagGuideUrlInp) farmTagGuideUrlInp.value = '';
+      if (farmTagGuideImgPreview) farmTagGuideImgPreview.src = DEFAULT_FARM_TAG_GUIDE_SVG;
+      btnClearFarmTagGuide.style.display = 'none';
+      toast('ใช้รูปภาพแนะนำแท็กฟาร์มเริ่มต้นของระบบ', 'info');
+    });
+
     // 4 Highlights Settings Manager (Requirement 6)
     const renderHighlightsList = () => {
       const listEl = formWrap.querySelector('#highlightsSettingsList');
@@ -7759,6 +8203,9 @@
 
       // Save QR Code Payment Image
       state.store.qr_image_url = currentQrPaymentImage;
+
+      // Save Farm Tag Guide Image (Checkout Modal)
+      state.store.farmTagGuideImage = currentFarmTagGuideImage;
 
       // Save Payment Accounts
       state.store.payment_accounts = currentPaymentAccounts.map(acc => ({
@@ -8322,8 +8769,12 @@
               </div>
 
               ${BANNERS.length > 1 ? `
-                <button class="carousel-btn prev" id="cPrev" aria-label="Previous">‹</button>
-                <button class="carousel-btn next" id="cNext" aria-label="Next">›</button>
+                <button class="carousel-btn prev" id="cPrev" aria-label="Previous">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button class="carousel-btn next" id="cNext" aria-label="Next">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
               ` : ''}
 
               <div class="carousel-dots" id="cDots">
@@ -8582,7 +9033,7 @@
                     </div>
                     ${CATEGORIES.map(c => `
                       <div class="multi-dropdown-item" data-cat="${escapeHTML(c.name)}">
-                        <span class="circle-checkbox checked" data-cat-chk="${escapeHTML(c.name)}">✓</span>
+                        <span class="circle-checkbox" data-cat-chk="${escapeHTML(c.name)}"></span>
                         <span>${escapeHTML(c.name)}</span>
                       </div>
                     `).join('')}
@@ -8602,7 +9053,7 @@
                     </div>
                     ${levelOptions.map(l => `
                       <div class="multi-dropdown-item" data-level="${escapeHTML(l)}">
-                        <span class="circle-checkbox checked" data-level-chk="${escapeHTML(l)}">✓</span>
+                        <span class="circle-checkbox" data-level-chk="${escapeHTML(l)}"></span>
                         <span>${escapeHTML(l)}</span>
                       </div>
                     `).join('')}
@@ -8674,25 +9125,40 @@
             const cat = item.dataset.cat;
             if (cat === '__ALL__') {
               selectedCats.clear();
-              catMenu.querySelectorAll('[data-cat-chk]').forEach(c => c.classList.add('checked'));
+              catMenu.querySelectorAll('[data-cat-chk]').forEach(c => {
+                c.classList.remove('checked');
+                c.textContent = '';
+              });
               wrap.querySelector('#chkCatAll').classList.add('checked');
+              wrap.querySelector('#chkCatAll').textContent = '✓';
               catLabel.textContent = 'All categories';
             } else {
+              const chk = item.querySelector('.circle-checkbox');
               if (selectedCats.has(cat)) {
                 selectedCats.delete(cat);
-                item.querySelector('.circle-checkbox')?.classList.remove('checked');
+                if (chk) { chk.classList.remove('checked'); chk.textContent = ''; }
               } else {
                 selectedCats.add(cat);
-                item.querySelector('.circle-checkbox')?.classList.add('checked');
+                if (chk) { chk.classList.add('checked'); chk.textContent = '✓'; }
               }
               const allChecked = selectedCats.size === 0 || selectedCats.size === CATEGORIES.length;
-              wrap.querySelector('#chkCatAll').classList.toggle('checked', allChecked);
-              if (selectedCats.size === 0) {
+              if (allChecked) {
+                selectedCats.clear();
+                catMenu.querySelectorAll('[data-cat-chk]').forEach(c => {
+                  c.classList.remove('checked');
+                  c.textContent = '';
+                });
+                wrap.querySelector('#chkCatAll').classList.add('checked');
+                wrap.querySelector('#chkCatAll').textContent = '✓';
                 catLabel.textContent = 'All categories';
-              } else if (selectedCats.size === 1) {
-                catLabel.textContent = Array.from(selectedCats)[0];
               } else {
-                catLabel.textContent = `หมวดหมู่ (${selectedCats.size})`;
+                wrap.querySelector('#chkCatAll').classList.remove('checked');
+                wrap.querySelector('#chkCatAll').textContent = '';
+                if (selectedCats.size === 1) {
+                  catLabel.textContent = Array.from(selectedCats)[0];
+                } else {
+                  catLabel.textContent = `หมวดหมู่ (${selectedCats.size})`;
+                }
               }
             }
             page = 1;
@@ -8706,25 +9172,40 @@
             const lvl = item.dataset.level;
             if (lvl === '__ALL__') {
               selectedLevels.clear();
-              levelMenu.querySelectorAll('[data-level-chk]').forEach(c => c.classList.add('checked'));
+              levelMenu.querySelectorAll('[data-level-chk]').forEach(c => {
+                c.classList.remove('checked');
+                c.textContent = '';
+              });
               wrap.querySelector('#chkLevelAll').classList.add('checked');
+              wrap.querySelector('#chkLevelAll').textContent = '✓';
               levelLabel.textContent = 'All Levels';
             } else {
+              const chk = item.querySelector('.circle-checkbox');
               if (selectedLevels.has(lvl)) {
                 selectedLevels.delete(lvl);
-                item.querySelector('.circle-checkbox')?.classList.remove('checked');
+                if (chk) { chk.classList.remove('checked'); chk.textContent = ''; }
               } else {
                 selectedLevels.add(lvl);
-                item.querySelector('.circle-checkbox')?.classList.add('checked');
+                if (chk) { chk.classList.add('checked'); chk.textContent = '✓'; }
               }
               const allChecked = selectedLevels.size === 0 || selectedLevels.size === levelOptions.length;
-              wrap.querySelector('#chkLevelAll').classList.toggle('checked', allChecked);
-              if (selectedLevels.size === 0) {
+              if (allChecked) {
+                selectedLevels.clear();
+                levelMenu.querySelectorAll('[data-level-chk]').forEach(c => {
+                  c.classList.remove('checked');
+                  c.textContent = '';
+                });
+                wrap.querySelector('#chkLevelAll').classList.add('checked');
+                wrap.querySelector('#chkLevelAll').textContent = '✓';
                 levelLabel.textContent = 'All Levels';
-              } else if (selectedLevels.size === 1) {
-                levelLabel.textContent = Array.from(selectedLevels)[0];
               } else {
-                levelLabel.textContent = `เลเวล (${selectedLevels.size})`;
+                wrap.querySelector('#chkLevelAll').classList.remove('checked');
+                wrap.querySelector('#chkLevelAll').textContent = '';
+                if (selectedLevels.size === 1) {
+                  levelLabel.textContent = Array.from(selectedLevels)[0];
+                } else {
+                  levelLabel.textContent = `เลเวล (${selectedLevels.size})`;
+                }
               }
             }
             page = 1;
@@ -9028,7 +9509,10 @@
                     <input class="input" id="coFarmName" placeholder="เช่น Green Valley Farm" value="${escapeHTML(state.checkoutForm.farmName || '')}" style="padding:9px 12px; font-size:13px; border-radius:12px;"/>
                   </div>
                   <div class="field">
-                    <label style="font-size:12px; font-weight:700;">Farm Tag</label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                      <label style="font-size:12px; font-weight:700; margin:0;">Farm Tag</label>
+                      <button type="button" class="btn-guide-link" id="btnViewFarmTagGuide">วิธีดูแท็กฟาร์ม</button>
+                    </div>
                     <input class="input" id="coFarmTag" placeholder="เช่น #FARM-01" value="${escapeHTML(state.checkoutForm.farmTag || '')}" style="padding:9px 12px; font-size:13px; border-radius:12px;"/>
                   </div>
                 </div>
@@ -9105,6 +9589,12 @@
         const coFarmNameEl = view.querySelector('#coFarmName');
         const coFarmTagEl = view.querySelector('#coFarmTag');
         const coContactEl = view.querySelector('#coContact');
+
+        view.querySelector('#btnViewFarmTagGuide')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openFarmTagGuideModal();
+        });
 
         coNameEl?.addEventListener('input', (e) => { state.checkoutForm.name = e.target.value; });
         coFarmNameEl?.addEventListener('input', (e) => { state.checkoutForm.farmName = e.target.value; });
