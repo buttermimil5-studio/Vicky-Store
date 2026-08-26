@@ -1316,35 +1316,51 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--text);
+  border: 2px solid var(--primary, #F8BFD4);
+  color: var(--accent-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   cursor: pointer;
   z-index: 5;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--primary, #F8BFD4) 30%, transparent), 0 2px 6px rgba(0,0,0,0.08);
   padding: 0;
 }
 .carousel-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   display: block;
 }
 .carousel-btn:hover {
-  background: var(--primary-50);
-  color: var(--accent-text);
+  background: var(--primary, #F8BFD4);
+  color: #FFFFFF;
   border-color: var(--primary-600);
-  transform: translateY(-50%) scale(1.08);
+  transform: translateY(-50%) scale(1.12);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-600) 45%, transparent);
+}
+.carousel-btn:active {
+  transform: translateY(-50%) scale(0.96);
 }
 .carousel-btn.prev { left: 14px; }
 .carousel-btn.next { right: 14px; }
+
+[data-theme="dark"] .carousel-btn {
+  background: var(--card);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 12px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+[data-theme="dark"] .carousel-btn:hover {
+  background: var(--primary);
+  color: #102117;
+  border-color: var(--primary);
+}
 
 .carousel-dots {
   position: absolute;
