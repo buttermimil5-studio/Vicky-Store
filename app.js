@@ -7500,23 +7500,37 @@
           </div>
         </div>
 
-        <!-- SECTION 7: Tracking Review Calligraphy & Heart Rating Labels Settings -->
+        <!-- SECTION 7: Order Tracking Customization & Review Settings -->
         <div class="card">
-          <div class="card-title">Tracking Review &amp; Heart Labels (ตั้งค่าข้อความรีวิวหน้า Tracking และระดับดวงใจ)</div>
-          <div class="card-sub">กำหนดชื่อร้าน Calligraphy, ข้อความขอบคุณบนหน้า Tracking และข้อความอธิบายการให้คะแนน 1-5 ดวงใจ</div>
+          <div class="card-title">Order Tracking Page &amp; Review (ตั้งค่าหน้าติดตามสถานะออเดอร์)</div>
+          <div class="card-sub">กำหนดข้อความบนปุ่มคัดลอก, ปุ่มติดต่อ/ทักแชท, ลิงก์ติดต่อปลายทาง และกล่องรีวิวสไตล์ Calligraphy</div>
           
           <div class="grid two-col" style="gap:16px; margin-top:14px;">
-            <!-- Left: Tracking Calligraphy Box Settings -->
+            <!-- Left: Tracking Buttons & Contact Link Settings -->
             <div style="background:var(--primary-50); padding:14px; border-radius:14px; border:1px solid var(--border);">
-              <div style="font-weight:700; font-size:13.5px; margin-bottom:10px; color:var(--text);">1. กล่องรีวิวหน้า Tracking (Calligraphy Banner)</div>
+              <div style="font-weight:700; font-size:13.5px; margin-bottom:10px; color:var(--text);">1. ปุ่มคัดลอกและปุ่มติดต่อ (Tracking Buttons &amp; Contact Link)</div>
               
               <div class="field">
+                <label>ข้อความบนปุ่มคัดลอกออเดอร์ (Copy Button Label)</label>
+                <input class="input" id="setTrackingCopyBtnText" value="${escapeHTML(state.store.trackingCopyBtnText || 'คัดลอกรหัสออเดอร์')}" />
+              </div>
+              <div class="field">
+                <label>ข้อความบนปุ่มติดต่อ / ทักแชท (Contact Button Label)</label>
+                <input class="input" id="setTrackingContactBtnText" value="${escapeHTML(state.store.trackingContactBtnText || 'ทักแชทแจ้งออเดอร์ (Line OA)')}" />
+              </div>
+              <div class="field" style="margin-bottom:12px;">
+                <label>ลิงก์ติดต่อปลายทางเมื่อกดปุ่ม (Contact Destination URL) *</label>
+                <input class="input" id="setTrackingContactUrl" placeholder="https://line.me/R/ti/p/@yourstore หรือ https://m.me/yourpage" value="${escapeHTML(state.store.trackingContactUrl || state.store.homeContactLineUrl || state.store.lineUrl || '')}" />
+              </div>
+
+              <div style="font-weight:700; font-size:13.5px; margin-top:14px; margin-bottom:8px; color:var(--text); padding-top:10px; border-top:1px dashed var(--border);">2. กล่องรีวิวหน้า Tracking (Calligraphy Banner)</div>
+              <div class="field">
                 <label>ชื่อร้านสไตล์ Calligraphy (Store Brand Title)</label>
-                <input class="input" id="setTrackingTitle" value="${escapeHTML(state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'BNC HayMate')}" />
+                <input class="input" id="setTrackingTitle" value="${escapeHTML(state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'Lilith Store')}" />
               </div>
               <div class="field">
                 <label>ข้อความเล็กๆ ใต้ชื่อร้าน (Sub-message)</label>
-                <input class="input" id="setTrackingSub" value="${escapeHTML(state.store.trackingReviewSub || '')}" />
+                <input class="input" id="setTrackingSub" value="${escapeHTML(state.store.trackingReviewSub || 'Thank you for your support')}" />
               </div>
               <div class="field" style="margin-bottom:0;">
                 <label>ข้อความบนปุ่มรีวิว (Button Text)</label>
@@ -8644,10 +8658,15 @@
       state.store.receiptFooterMsg = formWrap.querySelector('#setReceiptFooterMsg')?.value.trim() || 'Thank you for your order';
       state.store.receiptFooterSub = formWrap.querySelector('#setReceiptFooterSub')?.value.trim() || '';
 
+      // Tracking Page Customization Save
+      state.store.trackingCopyBtnText = formWrap.querySelector('#setTrackingCopyBtnText')?.value.trim() || 'คัดลอกรหัสออเดอร์';
+      state.store.trackingContactBtnText = formWrap.querySelector('#setTrackingContactBtnText')?.value.trim() || 'ทักแชทแจ้งออเดอร์ (Line OA)';
+      state.store.trackingContactUrl = formWrap.querySelector('#setTrackingContactUrl')?.value.trim() || '';
+
       // Tracking Review Calligraphy & Star Labels Save (STARS PRESERVED)
-      state.store.trackingReviewTitle = formWrap.querySelector('#setTrackingTitle')?.value.trim() || 'BNC HayMate Bakery';
+      state.store.trackingReviewTitle = formWrap.querySelector('#setTrackingTitle')?.value.trim() || 'Lilith Store';
       state.store.trackingReviewSub = formWrap.querySelector('#setTrackingSub')?.value.trim() || 'Thank you for your support';
-      state.store.trackingReviewBtnText = formWrap.querySelector('#setTrackingBtnText')?.value.trim() || 'เขียนรีวิวและให้คะแนนร้านค้า';
+      state.store.trackingReviewBtnText = formWrap.querySelector('#setTrackingBtnText')?.value.trim() || 'เขียนรีวิว & ให้คะแนนร้าน';
       state.store.starLabel1 = formWrap.querySelector('#setStarLabel1')?.value.trim() || '1 ดาว - ต้องปรับปรุง';
       state.store.starLabel2 = formWrap.querySelector('#setStarLabel2')?.value.trim() || '2 ดาว - พอใช้ได้';
       state.store.starLabel3 = formWrap.querySelector('#setStarLabel3')?.value.trim() || '3 ดาว - ปานกลาง / รสชาติดี';
@@ -10798,38 +10817,46 @@
         const trackingTitle = state.store.trackingReviewTitle || state.store.receiptStoreName || state.store.name || 'Lilith Store';
         const trackingSub = state.store.trackingReviewSub || 'Thank you for your support';
         const trackingBtn = state.store.trackingReviewBtnText || 'เขียนรีวิว & ให้คะแนนร้าน';
-        const contactLine = state.store.homeContactLineUrl || state.store.lineUrl || '';
+        const copyBtnText = state.store.trackingCopyBtnText || 'คัดลอกรหัสออเดอร์';
+        const contactBtnText = state.store.trackingContactBtnText || 'ทักแชทแจ้งออเดอร์ (Line OA)';
+        const contactUrl = state.store.trackingContactUrl || state.store.homeContactLineUrl || state.store.lineUrl || (state.store.homeContacts && state.store.homeContacts[0]?.url) || '';
 
         view.appendChild(el(`
           <div class="card" style="max-width:540px; margin:0 auto; padding:28px 24px; border-radius:24px; border:1.5px solid var(--border); box-shadow:var(--shadow-soft);">
             <div style="font-size:20px; font-weight:800; color:var(--text); margin-bottom:2px;">Order Tracking</div>
             <div style="font-size:13px; color:var(--muted);">Order ${escapeHTML(latestOrder.id)} · Live Status</div>
 
-            <!-- Vertical Timeline (Matching Image) -->
+            <!-- Vertical Timeline (Dynamic theme colors & SVG icons) -->
             <div class="timeline" style="margin-top:20px;">
               <div class="step done">
-                <div class="bullet">✓</div>
+                <div class="bullet">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
                 <div>
                   <div class="label">Waiting Payment</div>
                   <div class="sub">กรุณาชำระเงินเพื่อยืนยันคำสั่งซื้อ</div>
                 </div>
               </div>
               <div class="step done">
-                <div class="bullet">✓</div>
+                <div class="bullet">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
                 <div>
                   <div class="label">Payment Verify</div>
                   <div class="sub">ร้านกำลังตรวจสอบคำสั่งซื้อ กรุณารอสักครู่</div>
                 </div>
               </div>
-              <div class="step done">
-                <div class="bullet">✓</div>
+              <div class="step done active">
+                <div class="bullet">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
                 <div>
-                  <div class="label">You're in queue</div>
+                  <div class="label" style="color:var(--accent-text);">You're in queue</div>
                   <div class="sub" style="color:var(--accent-text); font-weight:700;">กรุณาคัดลอกรหัสออเดอร์ส่งให้ทางร้าน</div>
                 </div>
               </div>
-              <div class="step done">
-                <div class="bullet">✓</div>
+              <div class="step">
+                <div class="bullet">4</div>
                 <div>
                   <div class="label">Complete</div>
                   <div class="sub">จัดส่งเรียบร้อย</div>
@@ -10843,10 +10870,12 @@
               <div style="font-size:26px; font-weight:900; color:var(--accent-text); margin:8px 0 16px; letter-spacing:0.5px;">${escapeHTML(latestOrder.id)}</div>
               <div class="flex gap-2" style="flex-wrap:wrap;">
                 <button type="button" class="btn btn-primary" id="btnCopyTrackingOrderCode" style="flex:1; min-width:140px; padding:10px 16px; font-weight:700; border-radius:12px; font-size:13px;">
-                  คัดลอกรหัสออเดอร์
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  <span>${escapeHTML(copyBtnText)}</span>
                 </button>
-                <button type="button" class="btn" id="btnTrackingChatLine" style="flex:1; min-width:160px; padding:10px 16px; font-weight:700; border-radius:12px; border:1.5px solid var(--border); color:var(--accent-text); background:var(--primary-50); font-size:13px;">
-                  ทักแชทแจ้งออเดอร์ (Line OA)
+                <button type="button" class="btn" id="btnTrackingChatLine" style="flex:1; min-width:160px; padding:10px 16px; font-weight:700; border-radius:12px; border:1.5px solid var(--border); color:var(--accent-text); background:var(--primary-50); font-size:13px; cursor:pointer;">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                  <span>${escapeHTML(contactBtnText)}</span>
                 </button>
               </div>
             </div>
@@ -10868,21 +10897,44 @@
           </div>
         `));
 
-        view.querySelector('#btnCopyTrackingOrderCode')?.addEventListener('click', () => {
-          const code = latestOrder.id;
-          const doCopy = () => {
-            toast(`คัดลอกรหัสออเดอร์ "${code}" แล้ว`, 'success');
-          };
+        view.querySelector('#btnCopyTrackingOrderCode')?.addEventListener('click', async () => {
+          const code = String(latestOrder.id || '').trim();
+          let copied = false;
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(code).then(doCopy).catch(doCopy);
-          } else {
-            doCopy();
+            try {
+              await navigator.clipboard.writeText(code);
+              copied = true;
+            } catch (e) {}
           }
+          if (!copied) {
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = code;
+              ta.style.position = 'fixed';
+              ta.style.top = '0';
+              ta.style.left = '0';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.focus();
+              ta.select();
+              copied = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch (e) {}
+          }
+          toast(`คัดลอกรหัสออเดอร์ "${code}" แล้ว`, 'success');
         });
 
         view.querySelector('#btnTrackingChatLine')?.addEventListener('click', () => {
-          if (contactLine) window.open(contactLine, '_blank');
-          else toast('ติดต่อ Line OA: @lilithstore', 'info');
+          const rawUrl = state.store.trackingContactUrl || state.store.homeContactLineUrl || state.store.lineUrl || (state.store.homeContacts && state.store.homeContacts[0]?.url) || '';
+          if (rawUrl && rawUrl.trim()) {
+            let target = rawUrl.trim();
+            if (!target.startsWith('http://') && !target.startsWith('https://')) {
+              target = 'https://' + target;
+            }
+            window.open(target, '_blank', 'noopener,noreferrer');
+          } else {
+            toast('ยังไม่ได้ระบุลิงก์ติดต่อ กรุณาตั้งค่าในหน้า Settings', 'info');
+          }
         });
 
         view.querySelector('#btnTrackingReview')?.addEventListener('click', () => openWriteReviewModal(latestOrder));
