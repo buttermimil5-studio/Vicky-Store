@@ -246,10 +246,85 @@
   let STOCK = [];
 
   // ============================================================
+  // SOCIAL & CONTACT PLATFORMS DIRECTORY
+  // ============================================================
+  const SOCIAL_PLATFORMS = {
+    line: {
+      name: 'Line OA',
+      color: '#06C755',
+      bg: '#06C75515',
+      border: '#06C75540',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.019 9.572.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975 1.766-1.924 2.564-3.882 2.564-5.932"/></svg>`
+    },
+    facebook: {
+      name: 'Facebook',
+      color: '#1877F2',
+      bg: '#1877F215',
+      border: '#1877F240',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`
+    },
+    instagram: {
+      name: 'Instagram',
+      color: '#E1306C',
+      bg: '#E1306C15',
+      border: '#E1306C40',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`
+    },
+    tiktok: {
+      name: 'TikTok',
+      color: '#000000',
+      bg: '#00000010',
+      border: '#00000030',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.82 4.47 6.27 6.27 0 0 0 1.95-4.47V8.5a8.28 8.28 0 0 0 4.82 1.55v-3.36z"/></svg>`
+    },
+    twitter: {
+      name: 'Twitter / X',
+      color: '#0F1419',
+      bg: '#0F141910',
+      border: '#0F141930',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`
+    },
+    discord: {
+      name: 'Discord',
+      color: '#5865F2',
+      bg: '#5865F215',
+      border: '#5865F240',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>`
+    },
+    telegram: {
+      name: 'Telegram',
+      color: '#229ED9',
+      bg: '#229ED915',
+      border: '#229ED940',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>`
+    },
+    youtube: {
+      name: 'YouTube',
+      color: '#FF0000',
+      bg: '#FF000015',
+      border: '#FF000040',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`
+    },
+    custom: {
+      name: 'Website / อื่นๆ',
+      color: 'var(--accent-text)',
+      bg: 'var(--primary-50)',
+      border: 'var(--border)',
+      icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>`
+    }
+  };
+
+  // ============================================================
   // PART 3: Application State (Visitor Mode by Default)
   // ============================================================
   const DEFAULT_STORE_CONFIG = {
     name: 'BNC HayMate',
+    homeContactTitle: 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์',
+    homeContactSub: 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.',
+    homeContacts: [
+      { id: 'c_line', platform: 'line', label: 'Line OA', url: '' },
+      { id: 'c_fb', platform: 'facebook', label: 'Facebook', url: '' }
+    ],
     brandLogoType: 'emoji', // 'emoji' | 'image'
     brandLogoText: 'B',
     brandLogoImage: '',
@@ -7075,6 +7150,12 @@
     let currentReceiptFooterType = state.store.receiptFooterType === 'qr' ? 'image' : (state.store.receiptFooterType || 'image');
     let currentReceiptFooterImage = state.store.receiptFooterImage || '';
     let currentQrPaymentImage = state.store.qr_image_url || '';
+    let currentContacts = Array.isArray(state.store.homeContacts) && state.store.homeContacts.length > 0
+      ? JSON.parse(JSON.stringify(state.store.homeContacts))
+      : [
+          { id: 'c_line', platform: 'line', label: 'Line OA', url: state.store.homeContactLineUrl || state.store.lineUrl || '' },
+          { id: 'c_fb', platform: 'facebook', label: 'Facebook', url: state.store.homeContactFbUrl || state.store.facebookUrl || '' }
+        ];
     let currentHighlights = JSON.parse(JSON.stringify(state.store.highlights || DEFAULT_STORE_CONFIG.highlights || []));
     while (currentHighlights.length < 4) {
       currentHighlights.push({ iconType: 'image', icon: '', image: '', title: `จุดเด่น #${currentHighlights.length + 1}`, sub: '' });
@@ -7086,26 +7167,28 @@
         
         <!-- SECTION 1: Top Contact & Support Header Card -->
         <div class="card">
-          <div class="card-title">Top Contact &amp; Support Header Card (กล่องติดต่อสอบถาม &amp; แจ้งรหัสออเดอร์ บนหน้าแรก)</div>
-          <div class="card-sub">ปรับแต่งหัวข้อ, ปุ่มลิงก์ Line OA, Facebook, และคำบรรยายเวลาทำการที่แสดงด้านบนสุดของหน้า Home</div>
+          <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div class="card-title">Top Contact &amp; Support Header Card (กล่องติดต่อสอบถาม &amp; แจ้งรหัสออเดอร์ บนหน้าแรก)</div>
+              <div class="card-sub">ปรับแต่งหัวข้อ, คำบรรยายเวลาทำการ, และเพิ่ม/ลด/เลือกช่องทางติดต่อ (Line, Facebook, IG, TikTok, X, ฯลฯ)</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="btnAddContactChannel" style="font-weight:700; font-size:12px; padding:6px 14px;">+ เพิ่มช่องทางติดต่อ</button>
+          </div>
           
-          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-top:12px;">
+          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-top:14px; margin-bottom:16px;">
             <div class="field">
-              <label>หัวข้อกล่องติดต่อ (Contact Box Title)</label>
+              <label style="font-weight:700;">หัวข้อกล่องติดต่อ (Contact Box Title)</label>
               <input class="input" id="setHomeContactTitle" value="${escapeHTML(state.store.homeContactTitle || 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์')}" placeholder="เช่น ติดต่อสอบถาม & แจ้งรหัสออเดอร์" />
             </div>
             <div class="field">
-              <label>คำบรรยาย / เวลาทำการ (Subtitle &amp; Schedule)</label>
+              <label style="font-weight:700;">คำบรรยาย / เวลาทำการ (Subtitle &amp; Schedule)</label>
               <input class="input" id="setHomeContactSub" value="${escapeHTML(state.store.homeContactSub || 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.')}" placeholder="เช่น ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น." />
             </div>
-            <div class="field">
-              <label>ลิงก์ปุ่ม Line OA (Line OA URL)</label>
-              <input class="input" id="setHomeContactLineUrl" value="${escapeHTML(state.store.homeContactLineUrl || state.store.lineUrl || '')}" placeholder="เช่น https://line.me/ti/p/~@your_id" />
-            </div>
-            <div class="field">
-              <label>ลิงก์ปุ่ม Facebook (Facebook URL)</label>
-              <input class="input" id="setHomeContactFbUrl" value="${escapeHTML(state.store.homeContactFbUrl || state.store.facebookUrl || '')}" placeholder="เช่น https://facebook.com/your_page" />
-            </div>
+          </div>
+
+          <div style="font-weight:800; font-size:13px; color:var(--text); margin-bottom:10px;">รายการปุ่มช่องทางติดต่อ (Contact Channels):</div>
+          <div id="contactChannelsList" style="display:flex; flex-direction:column; gap:10px;">
+            <!-- Populated dynamically by renderContactsSettingsList() -->
           </div>
         </div>
 
@@ -7843,6 +7926,83 @@
 
     renderHighlightsSettingsList();
 
+    // Dynamic Contact Channels List Renderer
+    const renderContactsSettingsList = () => {
+      const container = formWrap.querySelector('#contactChannelsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (currentContacts.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:16px; background:var(--card); border:1.5px dashed var(--border); border-radius:14px; color:var(--muted); font-size:12.5px;">ยังไม่มีช่องทางติดต่อ กดปุ่ม "+ เพิ่มช่องทางติดต่อ" ด้านบนเพื่อเพิ่ม</div>`;
+        return;
+      }
+
+      currentContacts.forEach((c, idx) => {
+        const platformInfo = SOCIAL_PLATFORMS[c.platform] || SOCIAL_PLATFORMS.custom;
+        const row = el(`
+          <div style="display:flex; gap:10px; align-items:center; background:var(--card); border:1.5px solid var(--border); border-radius:14px; padding:10px 14px; flex-wrap:wrap; box-shadow:var(--shadow-soft);">
+            <div style="width:34px; height:34px; border-radius:10px; background:${platformInfo.bg}; color:${platformInfo.color}; border:1px solid ${platformInfo.border}; display:grid; place-items:center; flex:none;">
+              ${platformInfo.icon}
+            </div>
+            <div class="field" style="width:140px; margin:0; flex:none;">
+              <select class="select set-c-platform" style="padding:7px 10px; font-size:12.5px; border-radius:10px; font-weight:700;">
+                ${Object.entries(SOCIAL_PLATFORMS).map(([k, v]) => `
+                  <option value="${k}" ${c.platform === k ? 'selected' : ''}>${v.name}</option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="field" style="width:150px; margin:0; flex:none;">
+              <input class="input set-c-label" value="${escapeHTML(c.label || platformInfo.name)}" placeholder="ชื่อปุ่ม เช่น Line OA" style="padding:7px 10px; font-size:12.5px; border-radius:10px; font-weight:600;" />
+            </div>
+            <div class="field" style="flex:1; min-width:180px; margin:0;">
+              <input class="input set-c-url" value="${escapeHTML(c.url || '')}" placeholder="ลิงก์ URL เช่น https://line.me/... หรือ https://facebook.com/..." style="padding:7px 10px; font-size:12.5px; border-radius:10px;" />
+            </div>
+            <button type="button" class="btn btn-sm btn-danger btn-del-contact" style="padding:7px 10px; border-radius:10px; flex:none;" title="ลบช่องทางนี้">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            </button>
+          </div>
+        `);
+
+        row.querySelector('.set-c-platform')?.addEventListener('change', (e) => {
+          c.platform = e.target.value;
+          const newPlatformInfo = SOCIAL_PLATFORMS[c.platform] || SOCIAL_PLATFORMS.custom;
+          if (!c.label || Object.values(SOCIAL_PLATFORMS).some(p => p.name === c.label)) {
+            c.label = newPlatformInfo.name;
+          }
+          renderContactsSettingsList();
+        });
+
+        row.querySelector('.set-c-label')?.addEventListener('input', (e) => {
+          c.label = e.target.value;
+        });
+
+        row.querySelector('.set-c-url')?.addEventListener('input', (e) => {
+          c.url = e.target.value;
+        });
+
+        row.querySelector('.btn-del-contact')?.addEventListener('click', () => {
+          currentContacts.splice(idx, 1);
+          renderContactsSettingsList();
+          toast('ลบช่องทางติดต่อแล้ว', 'info');
+        });
+
+        container.appendChild(row);
+      });
+    };
+
+    formWrap.querySelector('#btnAddContactChannel')?.addEventListener('click', () => {
+      currentContacts.push({
+        id: 'c_' + Date.now(),
+        platform: 'line',
+        label: 'Line OA',
+        url: ''
+      });
+      renderContactsSettingsList();
+      toast('เพิ่มช่องทางติดต่อใหม่แล้ว', 'success');
+    });
+
+    renderContactsSettingsList();
+
     // Brand Logo Handlers
     const btnBrandLogoTypeEmoji = formWrap.querySelector('#btnBrandLogoTypeEmoji');
     const btnBrandLogoTypeImage = formWrap.querySelector('#btnBrandLogoTypeImage');
@@ -8408,10 +8568,23 @@
       // Save Top Contact Header Card Settings
       state.store.homeContactTitle = formWrap.querySelector('#setHomeContactTitle')?.value.trim() || 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์';
       state.store.homeContactSub = formWrap.querySelector('#setHomeContactSub')?.value.trim() || 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.';
-      state.store.homeContactLineUrl = formWrap.querySelector('#setHomeContactLineUrl')?.value.trim() || '';
-      state.store.lineUrl = state.store.homeContactLineUrl;
-      state.store.homeContactFbUrl = formWrap.querySelector('#setHomeContactFbUrl')?.value.trim() || '';
-      state.store.facebookUrl = state.store.homeContactFbUrl;
+      state.store.homeContacts = currentContacts.map(c => ({
+        id: c.id || ('c_' + Date.now()),
+        platform: c.platform || 'custom',
+        label: (c.label || '').trim() || (SOCIAL_PLATFORMS[c.platform] || SOCIAL_PLATFORMS.custom).name,
+        url: (c.url || '').trim()
+      }));
+
+      const lineContact = state.store.homeContacts.find(c => c.platform === 'line');
+      if (lineContact && lineContact.url) {
+        state.store.homeContactLineUrl = lineContact.url;
+        state.store.lineUrl = lineContact.url;
+      }
+      const fbContact = state.store.homeContacts.find(c => c.platform === 'facebook');
+      if (fbContact && fbContact.url) {
+        state.store.homeContactFbUrl = fbContact.url;
+        state.store.facebookUrl = fbContact.url;
+      }
 
       state.store.brandLogoType = currentBrandLogoType;
       state.store.brandLogoImage = (currentBrandLogoImage && !currentBrandLogoImage.startsWith('(Uploaded')) ? currentBrandLogoImage : (formWrap.querySelector('#setBrandLogoImgUrl')?.value && formWrap.querySelector('#setBrandLogoImgUrl').value !== '(Uploaded Photo)' ? formWrap.querySelector('#setBrandLogoImgUrl').value : currentBrandLogoImage || '');
@@ -8984,26 +9157,31 @@
       if (key === 'home') {
         const contactTitle = state.store.homeContactTitle || 'ติดต่อสอบถาม & แจ้งรหัสออเดอร์';
         const contactSub = state.store.homeContactSub || 'ตอบกลับไว ให้บริการทุกวัน 08:00 - 22:00 น.';
-        const contactLine = state.store.homeContactLineUrl || state.store.lineUrl || '';
-        const contactFb = state.store.homeContactFbUrl || state.store.facebookUrl || '';
+        const contactsList = Array.isArray(state.store.homeContacts) && state.store.homeContacts.length > 0
+          ? state.store.homeContacts
+          : [
+              { platform: 'line', label: 'Line OA', url: state.store.homeContactLineUrl || state.store.lineUrl || '' },
+              { platform: 'facebook', label: 'Facebook', url: state.store.homeContactFbUrl || state.store.facebookUrl || '' }
+            ];
 
         const topContactCard = el(`
           <div class="home-top-contact-card">
-            <div style="display:flex; align-items:center; gap:14px; flex:1;">
+            <div style="display:flex; align-items:center; gap:14px; flex:1; flex-wrap:wrap;">
               <div style="width:52px; height:52px; border-radius:50%; background:var(--primary-50); border:1.5px solid var(--border); display:grid; place-items:center; flex:none;">
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="var(--accent-text)" style="opacity:0.9;"><path d="M12 2a3 3 0 0 0-3 3c0 .8.3 1.5.8 2.1A5.5 5.5 0 0 0 4 12.5C4 15.5 6.5 18 9.5 18c.8 0 1.5-.2 2.1-.5.4.3.9.5 1.4.5a3 3 0 0 0 3-3c0-.8-.3-1.5-.8-2.1A5.5 5.5 0 0 0 20 7.5C20 4.5 17.5 2 14.5 2c-.8 0-1.5.2-2.1.5-.4-.3-.9-.5-1.4-.5Z"/><circle cx="12" cy="10" r="2" fill="#fff"/></svg>
               </div>
-              <div>
+              <div style="flex:1; min-width:240px;">
                 <div style="font-size:13.5px; font-weight:800; color:var(--text); margin-bottom:6px;">${escapeHTML(contactTitle)}</div>
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <button type="button" class="home-contact-pill-btn" id="btnContactLine" style="background:#06C75515; color:#06C755; border-color:#06C75540;">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.019 9.572.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975 1.766-1.924 2.564-3.882 2.564-5.932"/></svg>
-                    <span>Line OA</span>
-                  </button>
-                  <button type="button" class="home-contact-pill-btn" id="btnContactFb" style="background:#1877F215; color:#1877F2; border-color:#1877F240;">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                    <span>Facebook</span>
-                  </button>
+                  ${contactsList.map((c, idx) => {
+                    const info = SOCIAL_PLATFORMS[c.platform] || SOCIAL_PLATFORMS.custom;
+                    return `
+                      <button type="button" class="home-contact-pill-btn btn-contact-dynamic" data-idx="${idx}" style="background:${info.bg}; color:${info.color}; border-color:${info.border}; cursor:pointer;">
+                        ${info.icon}
+                        <span>${escapeHTML(c.label || info.name)}</span>
+                      </button>
+                    `;
+                  }).join('')}
                 </div>
                 <div style="font-size:11.5px; color:var(--muted); margin-top:6px;">${escapeHTML(contactSub)}</div>
               </div>
@@ -9012,13 +9190,16 @@
         `);
         view.appendChild(topContactCard);
 
-        topContactCard.querySelector('#btnContactLine')?.addEventListener('click', () => {
-          if (contactLine) window.open(contactLine, '_blank');
-          else toast('ติดต่อ Line OA: @lilithstore', 'info');
-        });
-        topContactCard.querySelector('#btnContactFb')?.addEventListener('click', () => {
-          if (contactFb) window.open(contactFb, '_blank');
-          else toast('ติดต่อ Facebook: Lilith Store', 'info');
+        topContactCard.querySelectorAll('.btn-contact-dynamic').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.dataset.idx);
+            const c = contactsList[idx];
+            if (c && c.url) {
+              window.open(c.url, '_blank');
+            } else {
+              toast(`ช่องทาง ${c?.label || 'ติดต่อ'}: ยังไม่ได้ระบุลิงก์`, 'info');
+            }
+          });
         });
 
         // 2. Carousel Container (Dynamic Slides, 1:1 Aspect Ratio at Top)
