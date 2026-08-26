@@ -322,6 +322,8 @@
     enableItems: true,
     enableCoinFarm: true,
     enableGameIds: true,
+    itemClickStep: 1, // Default items added per click (1, 10, 80)
+    priceRatio: 1.0, // Item price ratio / multiplier (e.g. 1.0, 1.25)
     coinFarmBoxes: [
       {
         id: 'cf_box_1',
@@ -391,6 +393,8 @@
       if (loadedStore.enableItems === undefined) loadedStore.enableItems = true;
       if (loadedStore.enableCoinFarm === undefined) loadedStore.enableCoinFarm = true;
       if (loadedStore.enableGameIds === undefined) loadedStore.enableGameIds = true;
+      if (loadedStore.itemClickStep === undefined) loadedStore.itemClickStep = 1;
+      if (loadedStore.priceRatio === undefined) loadedStore.priceRatio = 1.0;
     }
   } catch (e) {}
 
@@ -3298,30 +3302,37 @@
   // ============================================================
   function getCartItemDetails(key) {
     const k = String(key || '').trim();
+    if (!k) return null;
+
     if (k.startsWith('cf_tier_')) {
-      const parts = k.split('_');
-      const boxId = parts[2];
-      const tierId = parts[3];
-      const box = (state.store.coinFarmBoxes || []).find(b => b.id === boxId);
-      const tier = box?.tiers?.find(t => t.id === tierId);
-      if (tier && box) {
-        return {
-          id: k,
-          type: 'coin_farm',
-          name: `วนเหรียญ: ${tier.coins} (${box.title})`,
-          cat: 'วนเหรียญ',
-          price: Number(tier.price || 0),
-          stock: 9999,
-          desc: tier.desc || box.title,
-          image: DEFAULT_PRODUCT_IMG
-        };
+      const raw = k.slice('cf_tier_'.length);
+      const boxes = state.store?.coinFarmBoxes || DEFAULT_STORE_CONFIG.coinFarmBoxes || [];
+      for (const box of boxes) {
+        for (const tier of (box.tiers || [])) {
+          if (raw === `${box.id}_${tier.id}` || raw === tier.id || raw.endsWith(`_${tier.id}`)) {
+            return {
+              id: k,
+              rawId: tier.id,
+              boxId: box.id,
+              type: 'coin_farm',
+              name: `วนเหรียญ: ${tier.coins} (${box.title})`,
+              cat: 'วนเหรียญ',
+              price: Number(tier.price || 0),
+              stock: 9999,
+              desc: tier.desc || box.title,
+              image: DEFAULT_PRODUCT_IMG
+            };
+          }
+        }
       }
     } else if (k.startsWith('game_acc_')) {
-      const accId = k.replace('game_acc_', '');
-      const acc = (state.store.gameAccounts || []).find(a => a.id === accId);
+      const accId = k.slice('game_acc_'.length);
+      const accounts = state.store?.gameAccounts || DEFAULT_STORE_CONFIG.gameAccounts || [];
+      const acc = accounts.find(a => String(a.id) === String(accId));
       if (acc) {
         return {
           id: k,
+          rawId: acc.id,
           type: 'game_account',
           name: `[${acc.code}] ${acc.title}`,
           cat: 'ID Game',
@@ -3333,17 +3344,22 @@
         };
       }
     }
+
     const p = PRODUCTS.find(x => String(x.id) === k);
     if (p) {
+      const ratio = Number(state.store?.priceRatio) || 1.0;
+      const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
       return {
         id: p.id,
+        rawId: p.id,
         type: 'item',
         name: p.name,
         cat: p.cat || 'Item',
-        price: Number(p.price || 0),
+        price: effectivePrice,
         stock: Number(p.stock !== undefined ? p.stock : 0),
         desc: p.flavor || p.description || '',
-        image: p.image || DEFAULT_PRODUCT_IMG
+        image: p.image || DEFAULT_PRODUCT_IMG,
+        level: p.level || 1
       };
     }
     return null;
@@ -3410,6 +3426,9 @@
 
   // --- TAB 1: Item HayDay Management ---
   function renderAdminItemsTab(container) {
+    const currentStep = Number(state.store.itemClickStep) || 1;
+    const currentRatio = state.store.priceRatio !== undefined ? Number(state.store.priceRatio) : 1.0;
+
     const wrap = el(`
       <div>
         <!-- Module Toggle Row -->
@@ -3424,6 +3443,38 @@
           </label>
         </div>
 
+        <!-- Settings Box: Item Click Step & Price Ratio -->
+        <div class="card" style="margin-bottom:14px; background:var(--card);">
+          <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <div>
+              <div class="card-title" style="font-size:14.5px;">การตั้งค่าจำนวนคลิกไอเทมและสัดส่วนราคา (Item Click &amp; Price Ratio Settings)</div>
+              <div class="card-sub">กำหนดจำนวนชิ้นที่จะเพิ่มต่อ 1 คลิก และสัดส่วนตัวคูณราคาขายของสินค้าไอเทม</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="btnSaveItemSettings" style="font-weight:700; font-size:12px; padding:6px 14px;">
+              บันทึกการตั้งค่าไอเทม (Save Settings)
+            </button>
+          </div>
+
+          <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-top:8px;">
+            <div class="field" style="margin-bottom:0;">
+              <label style="font-size:12px; font-weight:700;">จำนวนคลิกไอเทมเริ่มต้น (Default Click Quantity Step)</label>
+              <select class="select" id="setAdminClickStep" style="font-size:13px; font-weight:700;">
+                <option value="1" ${currentStep === 1 ? 'selected' : ''}>1 ชิ้น / คลิก (x1)</option>
+                <option value="10" ${currentStep === 10 ? 'selected' : ''}>10 ชิ้น / คลิก (x10)</option>
+                <option value="80" ${currentStep === 80 ? 'selected' : ''}>80 ชิ้น / คลิก (x80)</option>
+                <option value="100" ${currentStep === 100 ? 'selected' : ''}>100 ชิ้น / คลิก (x100)</option>
+              </select>
+              <div style="font-size:11px; color:var(--muted); margin-top:3px;">จำนวนชิ้นที่ระบบจะเพิ่มลงตะกร้าเมื่อคลิกสินค้า 1 ครั้ง</div>
+            </div>
+
+            <div class="field" style="margin-bottom:0;">
+              <label style="font-size:12px; font-weight:700;">ช่องสัดส่วนราคา (Price Multiplier / Ratio)</label>
+              <input type="number" step="0.05" min="0.1" max="100" class="input" id="setAdminPriceRatio" value="${currentRatio}" style="font-size:13px; font-weight:700;" placeholder="เช่น 1.0 (ราคาปกติ), 1.2, 1.5" />
+              <div style="font-size:11px; color:var(--muted); margin-top:3px;">ตัวคูณสัดส่วนราคาขาย (เช่น 1.0 = ราคาเดิม, 1.2 = เพิ่ม 20%)</div>
+            </div>
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom:14px;">
           <div class="flex items-center" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
             <div>
@@ -3436,15 +3487,33 @@
             </div>
           </div>
 
-          <div class="filter-bar" style="margin-top:14px;">
-            <div class="search-wrap" style="flex:1; max-width:none">
+          <!-- Complete Dropdown Filter Toolbar -->
+          <div class="filter-bar" style="margin-top:14px; flex-wrap:wrap; gap:8px;">
+            <div class="search-wrap" style="flex:1; min-width:180px; max-width:none">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
               <input placeholder="Search items..." id="adminItemSearch"/>
             </div>
             <select class="select" id="adminItemCat" style="width:auto">
-              <option value="">All categories</option>
-              ${CATEGORIES.map(c => `<option>${c.name}</option>`).join('')}
+              <option value="">ทุกหมวดหมู่ (All Categories)</option>
+              ${CATEGORIES.map(c => `<option value="${escapeHTML(c.name)}">${escapeHTML(c.name)}</option>`).join('')}
             </select>
+            <select class="select" id="adminItemLevel" style="width:auto">
+              <option value="">ทุกเลเวล (All Levels)</option>
+              <option value="1-20">Lv. 1 - 20</option>
+              <option value="21-40">Lv. 21 - 40</option>
+              <option value="41-60">Lv. 41 - 60</option>
+              <option value="61-80">Lv. 61 - 80</option>
+              <option value="81+">Lv. 81+</option>
+            </select>
+            <select class="select" id="adminItemMultiplier" style="width:auto; font-weight:700; color:var(--accent-text);">
+              <option value="1" ${currentStep === 1 ? 'selected' : ''}>x1 ชิ้น/คลิก</option>
+              <option value="10" ${currentStep === 10 ? 'selected' : ''}>x10 ชิ้น/คลิก</option>
+              <option value="80" ${currentStep === 80 ? 'selected' : ''}>x80 ชิ้น/คลิก</option>
+              <option value="100" ${currentStep === 100 ? 'selected' : ''}>x100 ชิ้น/คลิก</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-ghost" id="btnAdminResetFilters" style="border:1px solid var(--border); font-weight:700; padding:6px 12px; border-radius:10px;">
+              ล้างค่า (Reset)
+            </button>
           </div>
 
           <div class="flex items-center" style="justify-content:space-between; margin-bottom:10px; color:var(--muted); font-size:12.5px">
@@ -3465,6 +3534,16 @@
       toast(state.store.enableItems ? 'เปิดการแสดงผลหมวด Item ในหน้าร้านแล้ว' : 'ปิดการแสดงผลหมวด Item ในหน้าร้านแล้ว', 'info');
     });
 
+    wrap.querySelector('#btnSaveItemSettings')?.addEventListener('click', () => {
+      const stepVal = Number(wrap.querySelector('#setAdminClickStep')?.value) || 1;
+      const ratioVal = Number(wrap.querySelector('#setAdminPriceRatio')?.value) || 1.0;
+      state.store.itemClickStep = stepVal;
+      state.store.priceRatio = ratioVal;
+      syncStoreSettingsAcrossDevices();
+      toast(`บันทึกการตั้งค่าไอเทม: คลิกละ ${stepVal} ชิ้น, สัดส่วนราคา x${ratioVal} เรียบร้อย`, 'success');
+      drawGrid();
+    });
+
     wrap.querySelector('#btnAddItemProduct')?.addEventListener('click', () => openAddProductModal());
     wrap.querySelector('#btnManageCategories')?.addEventListener('click', () => {
       state.page = 'categories';
@@ -3477,13 +3556,47 @@
     const countEl = wrap.querySelector('#adminItemCount');
     const searchInp = wrap.querySelector('#adminItemSearch');
     const catSelect = wrap.querySelector('#adminItemCat');
+    const levelSelect = wrap.querySelector('#adminItemLevel');
+    const multiplierSelect = wrap.querySelector('#adminItemMultiplier');
+    const btnReset = wrap.querySelector('#btnAdminResetFilters');
     const PAGE_SIZE = 160;
     let currentPage = 1;
+    let clickMultiplier = Number(multiplierSelect.value) || currentStep || 1;
+
+    multiplierSelect.addEventListener('change', () => {
+      clickMultiplier = Number(multiplierSelect.value) || 1;
+    });
+
+    btnReset.addEventListener('click', () => {
+      searchInp.value = '';
+      catSelect.value = '';
+      levelSelect.value = '';
+      multiplierSelect.value = String(state.store.itemClickStep || 1);
+      clickMultiplier = Number(multiplierSelect.value) || 1;
+      currentPage = 1;
+      drawGrid();
+      toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
+    });
 
     function drawGrid() {
       const q = searchInp.value.toLowerCase().trim();
       const cat = catSelect.value;
-      const list = PRODUCTS.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!cat || p.cat === cat));
+      const lvl = levelSelect.value;
+
+      const list = PRODUCTS.filter(p => {
+        if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
+        if (cat && p.cat !== cat) return false;
+        if (lvl) {
+          const pLevel = Number(p.level) || 1;
+          if (lvl === '1-20' && (pLevel < 1 || pLevel > 20)) return false;
+          if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
+          if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
+          if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
+          if (lvl === '81+' && pLevel < 81) return false;
+        }
+        return true;
+      });
+
       const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
       if (currentPage > totalPages) currentPage = totalPages;
       const start = (currentPage - 1) * PAGE_SIZE;
@@ -3494,13 +3607,16 @@
         : 'No products';
       grid.innerHTML = '';
 
+      const ratio = Number(state.store?.priceRatio) || 1.0;
+
       pageItems.forEach(p => {
         const stockCls = p.stock === 0 ? 'out' : p.stock < 10 ? 'low' : '';
         const qty = state.selected[p.id] || 0;
         const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
+        const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
         const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
         const tile = el(`
-          <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(p.price)}">
+          <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1})">
             ${mediaHtml}
             <span class="stock-dot"></span>
             <span class="qty-badge">${qty}</span>
@@ -3508,7 +3624,7 @@
         `);
         tile.addEventListener('click', () => {
           if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-          state.selected[p.id] = (state.selected[p.id] || 0) + 1;
+          state.selected[p.id] = (state.selected[p.id] || 0) + clickMultiplier;
           tile.classList.add('selected');
           const badge = tile.querySelector('.qty-badge');
           badge.textContent = state.selected[p.id];
@@ -3517,7 +3633,7 @@
         tile.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           if (!state.selected[p.id]) return openProductQuickModal(p);
-          state.selected[p.id] -= 1;
+          state.selected[p.id] -= clickMultiplier;
           if (state.selected[p.id] <= 0) {
             delete state.selected[p.id];
             tile.classList.remove('selected');
@@ -3545,6 +3661,7 @@
 
     searchInp.addEventListener('input', () => { currentPage = 1; drawGrid(); });
     catSelect.addEventListener('change', () => { currentPage = 1; drawGrid(); });
+    levelSelect.addEventListener('change', () => { currentPage = 1; drawGrid(); });
     drawGrid();
   }
 
@@ -7727,8 +7844,8 @@
         return sum + (item ? Number(item.price) * Number(q) : 0);
       }, 0);
 
-      // Only show floating button on Store page when actively viewing 'products' tab and items > 0
-      if (totalQty > 0 && state.page === 'store' && currentStoreTab === 'products') {
+      // Show floating button on Store page when viewing 'products' or 'home' tab and items > 0
+      if (totalQty > 0 && state.page === 'store' && (currentStoreTab === 'products' || currentStoreTab === 'home')) {
         if (!floatBtn) {
           floatBtn = el(`
             <button type="button" id="storeFloatingCartBtn" class="floating-cart-btn" title="ไปที่ตะกร้าสินค้า">
@@ -8288,16 +8405,40 @@
 
           if (state.storeProductSubTab === 'items' && isItemsActive) {
             // ITEM HAYDAY CATALOG
+            const currentStep = Number(state.store.itemClickStep) || 1;
             const itemBox = el(`
               <div class="card">
-                <div class="flex items-center" style="justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px">
-                  <div><div class="card-title">Item HayDay Catalog</div><div class="card-sub">แตะสินค้าเพื่อใส่ตะกร้า (Right-click เพื่อลดจำนวน)</div></div>
-                  <div class="flex gap-2" style="flex-wrap:wrap">
-                    <div class="search-wrap" style="max-width:220px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg><input placeholder="Search items..." id="storeSearch"/></div>
+                <div class="flex items-center" style="justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
+                  <div>
+                    <div class="card-title">Item HayDay Catalog</div>
+                    <div class="card-sub">แตะสินค้าเพื่อใส่ตะกร้า (Right-click เพื่อลดจำนวน)</div>
+                  </div>
+                  <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
+                    <div class="search-wrap" style="max-width:200px">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+                      <input placeholder="ค้นหาไอเทม..." id="storeSearch"/>
+                    </div>
                     <select class="select" id="storeCat" style="width:auto">
-                      <option value="">All categories</option>
-                      ${CATEGORIES.map(c => `<option>${c.name}</option>`).join('')}
+                      <option value="">ทุกหมวดหมู่ (All Categories)</option>
+                      ${CATEGORIES.map(c => `<option value="${escapeHTML(c.name)}">${escapeHTML(c.name)}</option>`).join('')}
                     </select>
+                    <select class="select" id="storeLevel" style="width:auto">
+                      <option value="">ทุกเลเวล (All Levels)</option>
+                      <option value="1-20">Lv. 1 - 20</option>
+                      <option value="21-40">Lv. 21 - 40</option>
+                      <option value="41-60">Lv. 41 - 60</option>
+                      <option value="61-80">Lv. 61 - 80</option>
+                      <option value="81+">Lv. 81+</option>
+                    </select>
+                    <select class="select" id="storeMultiplier" style="width:auto; font-weight:700; color:var(--accent-text);">
+                      <option value="1" ${currentStep === 1 ? 'selected' : ''}>x1 ชิ้น/คลิก</option>
+                      <option value="10" ${currentStep === 10 ? 'selected' : ''}>x10 ชิ้น/คลิก</option>
+                      <option value="80" ${currentStep === 80 ? 'selected' : ''}>x80 ชิ้น/คลิก</option>
+                      <option value="100" ${currentStep === 100 ? 'selected' : ''}>x100 ชิ้น/คลิก</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-ghost" id="btnStoreResetFilters" style="padding:6px 12px; font-weight:700; border:1px solid var(--border); border-radius:10px;">
+                      ล้างค่า (Reset)
+                    </button>
                   </div>
                 </div>
                 <div class="flex items-center" style="justify-content:space-between; margin-bottom:10px; color:var(--muted); font-size:12.5px">
@@ -8316,8 +8457,27 @@
             const cartInfo = itemBox.querySelector('#storeCartInfo');
             const searchEl = itemBox.querySelector('#storeSearch');
             const catEl = itemBox.querySelector('#storeCat');
+            const levelEl = itemBox.querySelector('#storeLevel');
+            const multiplierEl = itemBox.querySelector('#storeMultiplier');
+            const btnReset = itemBox.querySelector('#btnStoreResetFilters');
             const PAGE = 160;
             let page = 1;
+            let currentMultiplier = Number(multiplierEl.value) || currentStep || 1;
+
+            multiplierEl.addEventListener('change', () => {
+              currentMultiplier = Number(multiplierEl.value) || 1;
+            });
+
+            btnReset.addEventListener('click', () => {
+              searchEl.value = '';
+              catEl.value = '';
+              levelEl.value = '';
+              multiplierEl.value = String(state.store.itemClickStep || 1);
+              currentMultiplier = Number(multiplierEl.value) || 1;
+              page = 1;
+              drawStoreGrid();
+              toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
+            });
 
             function updateCartInfo() {
               const totalQty = Object.values(state.selected).reduce((a,b)=>a+Number(b||0), 0);
@@ -8336,9 +8496,24 @@
             });
 
             function drawStoreGrid() {
-              const q = searchEl.value.toLowerCase();
+              const q = searchEl.value.toLowerCase().trim();
               const cat = catEl.value;
-              const list = PRODUCTS.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!cat || p.cat === cat));
+              const lvl = levelEl.value;
+
+              const list = PRODUCTS.filter(p => {
+                if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
+                if (cat && p.cat !== cat) return false;
+                if (lvl) {
+                  const pLevel = Number(p.level) || 1;
+                  if (lvl === '1-20' && (pLevel < 1 || pLevel > 20)) return false;
+                  if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
+                  if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
+                  if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
+                  if (lvl === '81+' && pLevel < 81) return false;
+                }
+                return true;
+              });
+
               const totalPages = Math.max(1, Math.ceil(list.length / PAGE));
               if (page > totalPages) page = totalPages;
               const start = (page - 1) * PAGE;
@@ -8347,14 +8522,18 @@
                 ? `Showing ${start + 1}–${Math.min(list.length, start + PAGE)} of ${list.length} products`
                 : 'No products';
               grid.innerHTML = '';
+
+              const ratio = Number(state.store?.priceRatio) || 1.0;
+
               items.forEach(p => {
                 const sInfo = getStockStatusInfo(p.stock);
                 const stockCls = sInfo.dotClass;
                 const qty = state.selected[p.id] || 0;
+                const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
                 const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
                 const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
                 const tile = el(`
-                  <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(p.price)}">
+                  <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1})">
                     ${mediaHtml}
                     <span class="stock-dot"></span>
                     <span class="qty-badge">${qty}</span>
@@ -8362,7 +8541,7 @@
                 `);
                 tile.addEventListener('click', () => {
                   if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-                  state.selected[p.id] = (state.selected[p.id] || 0) + 1;
+                  state.selected[p.id] = (state.selected[p.id] || 0) + currentMultiplier;
                   tile.classList.add('selected');
                   const badge = tile.querySelector('.qty-badge');
                   badge.textContent = state.selected[p.id];
@@ -8373,7 +8552,7 @@
                 tile.addEventListener('contextmenu', (e) => {
                   e.preventDefault();
                   if (!state.selected[p.id]) return;
-                  state.selected[p.id] -= 1;
+                  state.selected[p.id] -= currentMultiplier;
                   if (state.selected[p.id] <= 0) {
                     delete state.selected[p.id];
                     tile.classList.remove('selected');
@@ -8400,6 +8579,7 @@
             }
             searchEl.addEventListener('input', () => { page = 1; drawStoreGrid(); });
             catEl.addEventListener('change', () => { page = 1; drawStoreGrid(); });
+            levelEl.addEventListener('change', () => { page = 1; drawStoreGrid(); });
             drawStoreGrid();
             updateCartInfo();
 
