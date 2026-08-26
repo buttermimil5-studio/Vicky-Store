@@ -3720,6 +3720,17 @@
         }
       });
 
+      if (willShow) {
+        const rect = btn.getBoundingClientRect();
+        const viewportW = window.innerWidth;
+        const menuW = 240;
+        let left = rect.left;
+        if (left + menuW > viewportW - 8) left = Math.max(8, viewportW - menuW - 8);
+        menu.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+        menu.style.left = left + 'px';
+        menu.style.width = menuW + 'px';
+      }
+
       menu.classList.toggle('show', willShow);
       btn.classList.toggle('active', willShow || currentVals.size > 0);
       arrow.textContent = willShow ? '▲' : '▼';
