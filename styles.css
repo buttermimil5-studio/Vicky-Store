@@ -1904,4 +1904,109 @@ table.data th:last-child, table.data td:last-child{padding-right:20px}
   border-color: var(--primary-300);
 }
 
+/* Custom Interactive Popup Dropdown (Categories & Levels) */
+.custom-dropdown-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-dropdown-btn {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.custom-dropdown-btn:hover {
+  border-color: var(--primary-400);
+}
+
+.custom-dropdown-btn.active {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+  background: var(--primary-50);
+}
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  max-width: 280px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: none;
+}
+
+.custom-dropdown-menu.show {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.custom-dropdown-option:hover {
+  background: var(--primary-50);
+}
+
+.custom-dropdown-option.selected {
+  background: var(--primary-100);
+  font-weight: 800;
+  color: var(--accent-text);
+}
+
+.custom-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: all 0.15s ease;
+  background: var(--card);
+}
+
+.custom-radio.checked {
+  border-color: #d97706;
+  background: #d97706;
+}
+
+.custom-radio.checked:after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+
 

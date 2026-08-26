@@ -160,7 +160,6 @@
     { key: 'dashboard', label: 'Dashboard', icon: ICONS.dashboard },
     { key: 'orders', label: 'Orders', icon: ICONS.orders },
     { key: 'products', label: 'Products', icon: ICONS.products },
-    { key: 'categories', label: 'Categories', icon: ICONS.categories },
     { key: 'stock', label: 'Stock', icon: ICONS.stock },
     { key: 'customers', label: 'Customers', icon: ICONS.customers },
     { key: 'reviews', label: 'Reviews', icon: ICONS.reviews },
@@ -3344,6 +3343,46 @@
   // ============================================================
   // UNIVERSAL CART ITEM RESOLVER (Items, Coin Farming, Game IDs)
   // ============================================================
+  function findProductPriceRule(product) {
+    if (!product) return null;
+    const rules = state.store?.priceRules || [];
+    const pCat = product.cat || '';
+    const pLvl = Number(product.level) || 1;
+    return rules.find(r => {
+      const catMatch = !r.category || r.category === 'All' || r.category === 'ทุกหมวดหมู่' || r.category === pCat;
+      if (!catMatch) return false;
+      if (r.isAllLevel) return true;
+      const min = Number(r.levelMin) || 1;
+      const max = Number(r.levelMax) || 9999;
+      return pLvl >= min && pLvl <= max;
+    });
+  }
+
+  function getProductClickStep(product) {
+    const rule = findProductPriceRule(product);
+    if (rule && rule.step) return Number(rule.step);
+    return Number(state.store?.itemClickStep) || 1;
+  }
+
+  function calculateCartItemPrice(id, qty) {
+    const item = getCartItemDetails(id);
+    if (!item) return 0;
+    const q = Number(qty) || 1;
+    if (item.type === 'item') {
+      const p = PRODUCTS.find(x => String(x.id) === String(id));
+      const rule = findProductPriceRule(p);
+      if (rule && rule.tiers && rule.tiers.length > 0) {
+        const sortedTiers = [...rule.tiers].sort((a, b) => b.qty - a.qty);
+        const matchedTier = sortedTiers.find(t => q >= t.qty);
+        if (matchedTier && matchedTier.qty > 0) {
+          const unitRate = Number(matchedTier.price) / Number(matchedTier.qty);
+          return Math.round(unitRate * q * 100) / 100;
+        }
+      }
+    }
+    return Math.round(Number(item.price) * q * 100) / 100;
+  }
+
   function getCartItemDetails(key) {
     const k = String(key || '').trim();
     if (!k) return null;
@@ -3392,7 +3431,14 @@
     const p = PRODUCTS.find(x => String(x.id) === k);
     if (p) {
       const ratio = Number(state.store?.priceRatio) || 1.0;
-      const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
+      let effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
+      const rule = findProductPriceRule(p);
+      if (rule && rule.tiers && rule.tiers.length > 0) {
+        const firstTier = rule.tiers[0];
+        if (firstTier && firstTier.qty > 0) {
+          effectivePrice = Math.round((firstTier.price / firstTier.qty) * 100) / 100;
+        }
+      }
       return {
         id: p.id,
         rawId: p.id,
@@ -3403,10 +3449,212 @@
         stock: Number(p.stock !== undefined ? p.stock : 0),
         desc: p.flavor || p.description || '',
         image: p.image || DEFAULT_PRODUCT_IMG,
-        level: p.level || 1
+        level: p.level || 1,
+        rule: rule
       };
     }
     return null;
+  }
+
+  // Custom Popup Dropdown Component Generator
+  function createCustomDropdown({ buttonLabel, options, selectedValue, onSelect }) {
+    let currentVal = selectedValue || '';
+    const initialOpt = options.find(o => o.value === currentVal);
+    const initialLabel = initialOpt ? initialOpt.label : buttonLabel;
+
+    const wrap = el(`
+      <div class="custom-dropdown-wrap">
+        <button type="button" class="custom-dropdown-btn">
+          <span class="btn-text">${escapeHTML(initialLabel)}</span>
+          <span class="dropdown-arrow">▼</span>
+        </button>
+        <div class="custom-dropdown-menu">
+          ${options.map(opt => `
+            <div class="custom-dropdown-option ${opt.value === currentVal ? 'selected' : ''}" data-val="${escapeHTML(opt.value)}">
+              <span class="custom-radio ${opt.value === currentVal ? 'checked' : ''}"></span>
+              <span>${escapeHTML(opt.label)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `);
+
+    const btn = wrap.querySelector('.custom-dropdown-btn');
+    const menu = wrap.querySelector('.custom-dropdown-menu');
+    const btnText = wrap.querySelector('.btn-text');
+    const arrow = wrap.querySelector('.dropdown-arrow');
+
+    const toggle = (show) => {
+      const willShow = show !== undefined ? show : !menu.classList.contains('show');
+      document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
+        if (m !== menu) {
+          m.classList.remove('show');
+          m.closest('.custom-dropdown-wrap')?.querySelector('.custom-dropdown-btn')?.classList.remove('active');
+          const a = m.closest('.custom-dropdown-wrap')?.querySelector('.dropdown-arrow');
+          if (a) a.textContent = '▼';
+        }
+      });
+
+      menu.classList.toggle('show', willShow);
+      btn.classList.toggle('active', willShow);
+      arrow.textContent = willShow ? '▲' : '▼';
+    };
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggle();
+    });
+
+    wrap.querySelectorAll('.custom-dropdown-option').forEach(optEl => {
+      optEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const val = optEl.dataset.val;
+        currentVal = val;
+        wrap.querySelectorAll('.custom-dropdown-option').forEach(o => {
+          const isSel = o.dataset.val === val;
+          o.classList.toggle('selected', isSel);
+          o.querySelector('.custom-radio')?.classList.toggle('checked', isSel);
+        });
+        const matched = options.find(o => o.value === val);
+        btnText.textContent = matched ? matched.label : buttonLabel;
+        toggle(false);
+        if (onSelect) onSelect(val);
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrap.contains(e.target)) toggle(false);
+    });
+
+    return {
+      element: wrap,
+      getValue: () => currentVal,
+      setValue: (val) => {
+        currentVal = val;
+        wrap.querySelectorAll('.custom-dropdown-option').forEach(o => {
+          const isSel = o.dataset.val === val;
+          o.classList.toggle('selected', isSel);
+          o.querySelector('.custom-radio')?.classList.toggle('checked', isSel);
+        });
+        const matched = options.find(o => o.value === val);
+        btnText.textContent = matched ? matched.label : buttonLabel;
+      }
+    };
+  }
+
+  // Category Manager Modal (in Product -> Item)
+  function openManageCategoriesModal() {
+    const { modal, body } = openModal({
+      title: `จัดการหมวดหมู่สินค้า (${CATEGORIES.length} หมวดหมู่)`,
+      width: 500
+    });
+
+    const renderList = () => {
+      body.innerHTML = '';
+      const content = el(`
+        <div>
+          <!-- Add Category Input Row -->
+          <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <input class="input" id="newCatNameInput" placeholder="ชื่อหมวดหมู่ใหม่..." style="flex:1;" />
+            <button type="button" class="btn btn-primary" id="btnAddNewCat" style="font-weight:700; white-space:nowrap;">
+              + เพิ่มหมวดหมู่
+            </button>
+          </div>
+
+          <div style="font-weight:800; font-size:13px; color:var(--muted); margin-bottom:8px;">รายการหมวดหมู่ทั้งหมด</div>
+          <div style="display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto;" id="modalCatItemsList">
+            ${CATEGORIES.map((c, idx) => {
+              const count = PRODUCTS.filter(p => p.cat === c.name).length;
+              return `
+                <div class="card" style="margin:0; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--card);">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-weight:800; font-size:14px; color:var(--text);">${escapeHTML(c.name)}</span>
+                    <span class="badge" style="font-size:11px; background:var(--primary-50);">${count} รายการ</span>
+                  </div>
+                  <div class="flex gap-1">
+                    <button type="button" class="btn btn-sm btn-ghost btn-rename-cat" data-idx="${idx}" style="padding:4px 8px; font-size:12px;" title="แก้ไขชื่อ">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-ghost btn-delete-cat" data-idx="${idx}" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="ลบหมวดหมู่">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `);
+      body.appendChild(content);
+
+      content.querySelector('#btnAddNewCat')?.addEventListener('click', async () => {
+        const nameInp = content.querySelector('#newCatNameInput');
+        const name = nameInp?.value.trim();
+        if (!name) return toast('กรุณาระบุชื่อหมวดหมู่', 'error');
+        if (CATEGORIES.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+          return toast('มีหมวดหมู่นี้อยู่แล้ว', 'error');
+        }
+        CATEGORIES.push({ name, count: 0 });
+        if (supabase) {
+          try { await supabase.from('categories').insert([{ name }]); } catch (e) {}
+        }
+        try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+        toast(`เพิ่มหมวดหมู่ "${name}" เรียบร้อยแล้ว`, 'success');
+        renderList();
+        const mainContent = document.getElementById('adminProductTabContent');
+        if (mainContent && state.adminProductTab === 'items') renderAdminItemsTab(mainContent);
+      });
+
+      content.querySelectorAll('.btn-rename-cat').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const idx = +btn.dataset.idx;
+          const cat = CATEGORIES[idx];
+          const newName = prompt('แก้ไขชื่อหมวดหมู่:', cat.name);
+          if (!newName || newName.trim() === '' || newName.trim() === cat.name) return;
+          const oldName = cat.name;
+          cat.name = newName.trim();
+          PRODUCTS.forEach(p => { if (p.cat === oldName) p.cat = cat.name; });
+          if (supabase) {
+            try {
+              await supabase.from('categories').update({ name: cat.name }).eq('name', oldName);
+              await supabase.from('products').update({ cat: cat.name }).eq('cat', oldName);
+            } catch (e) {}
+          }
+          persistProducts();
+          try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+          toast(`เปลี่ยนชื่อหมวดหมู่เป็น "${cat.name}" แล้ว`, 'success');
+          renderList();
+          const mainContent = document.getElementById('adminProductTabContent');
+          if (mainContent && state.adminProductTab === 'items') renderAdminItemsTab(mainContent);
+        });
+      });
+
+      content.querySelectorAll('.btn-delete-cat').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const idx = +btn.dataset.idx;
+          const cat = CATEGORIES[idx];
+          const hasProds = PRODUCTS.some(p => p.cat === cat.name);
+          if (hasProds) {
+            if (!confirm(`หมวดหมู่ "${cat.name}" มีสินค้าอยู่ ต้องการลบหรือไม่ (สินค้าจะถูกย้ายไปหมวดหมู่ทั่วไป)?`)) return;
+            PRODUCTS.forEach(p => { if (p.cat === cat.name) p.cat = 'Other'; });
+            persistProducts();
+          } else {
+            if (!confirm(`คุณต้องการลบหมวดหมู่ "${cat.name}" ใช่หรือไม่?`)) return;
+          }
+          CATEGORIES.splice(idx, 1);
+          if (supabase) {
+            try { await supabase.from('categories').delete().eq('name', cat.name); } catch(e) {}
+          }
+          try { localStorage.setItem('haypos_categories', JSON.stringify(CATEGORIES)); } catch(e) {}
+          toast(`ลบหมวดหมู่ "${cat.name}" เรียบร้อยแล้ว`, 'info');
+          renderList();
+          const mainContent = document.getElementById('adminProductTabContent');
+          if (mainContent && state.adminProductTab === 'items') renderAdminItemsTab(mainContent);
+        });
+      });
+    };
+
+    renderList();
   }
 
   // ============================================================
@@ -3470,8 +3718,6 @@
 
   // --- TAB 1: Item HayDay Management ---
   function renderAdminItemsTab(container) {
-    const currentStep = Number(state.store.itemClickStep) || 1;
-    const currentRatio = state.store.priceRatio !== undefined ? Number(state.store.priceRatio) : 1.0;
     const priceRules = state.store.priceRules || [];
 
     const wrap = el(`
@@ -3520,31 +3766,15 @@
             </div>
           </div>
 
-          <!-- Complete Dropdown Filter Toolbar -->
-          <div class="filter-bar" style="margin-top:14px; flex-wrap:wrap; gap:8px;">
-            <div class="search-wrap" style="flex:1; min-width:180px; max-width:none">
+          <!-- Custom Popup Dropdowns Toolbar (Matching Screenshot) -->
+          <div class="filter-bar" style="margin-top:14px; flex-wrap:wrap; gap:10px; align-items:center;">
+            <div class="search-wrap" style="flex:1; min-width:180px; max-width:280px; border-radius:24px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
               <input placeholder="Search items..." id="adminItemSearch"/>
             </div>
-            <select class="select" id="adminItemCat" style="width:auto">
-              <option value="">ทุกหมวดหมู่ (All Categories)</option>
-              ${CATEGORIES.map(c => `<option value="${escapeHTML(c.name)}">${escapeHTML(c.name)}</option>`).join('')}
-            </select>
-            <select class="select" id="adminItemLevel" style="width:auto">
-              <option value="">ทุกเลเวล (All Levels)</option>
-              <option value="1-20">Lv. 1 - 20</option>
-              <option value="21-40">Lv. 21 - 40</option>
-              <option value="41-60">Lv. 41 - 60</option>
-              <option value="61-80">Lv. 61 - 80</option>
-              <option value="81+">Lv. 81+</option>
-            </select>
-            <select class="select" id="adminItemMultiplier" style="width:auto; font-weight:700; color:var(--accent-text);">
-              <option value="1" ${currentStep === 1 ? 'selected' : ''}>x1 ชิ้น/คลิก</option>
-              <option value="10" ${currentStep === 10 ? 'selected' : ''}>x10 ชิ้น/คลิก</option>
-              <option value="80" ${currentStep === 80 ? 'selected' : ''}>x80 ชิ้น/คลิก</option>
-              <option value="100" ${currentStep === 100 ? 'selected' : ''}>x100 ชิ้น/คลิก</option>
-            </select>
-            <button type="button" class="btn btn-sm btn-ghost" id="btnAdminResetFilters" style="border:1px solid var(--border); font-weight:700; padding:6px 12px; border-radius:10px;">
+            <div id="adminCatDropdownSlot"></div>
+            <div id="adminLevelDropdownSlot"></div>
+            <button type="button" class="btn btn-sm btn-ghost" id="btnAdminResetFilters" style="border:1.5px solid var(--border); font-weight:700; padding:7px 14px; border-radius:20px;">
               ล้างค่า (Reset)
             </button>
           </div>
@@ -3692,36 +3922,62 @@
     renderPriceRules();
 
     wrap.querySelector('#btnAddPriceRuleBox')?.addEventListener('click', () => openAddPriceRuleModal());
-
     wrap.querySelector('#btnAddItemProduct')?.addEventListener('click', () => openAddProductModal());
-    wrap.querySelector('#btnManageCategories')?.addEventListener('click', () => {
-      state.page = 'categories';
-      renderMenu();
-      renderPage();
-    });
+    wrap.querySelector('#btnManageCategories')?.addEventListener('click', () => openManageCategoriesModal());
 
     const grid = wrap.querySelector('#adminItemGrid');
     const pager = wrap.querySelector('#adminItemPager');
     const countEl = wrap.querySelector('#adminItemCount');
     const searchInp = wrap.querySelector('#adminItemSearch');
-    const catSelect = wrap.querySelector('#adminItemCat');
-    const levelSelect = wrap.querySelector('#adminItemLevel');
-    const multiplierSelect = wrap.querySelector('#adminItemMultiplier');
     const btnReset = wrap.querySelector('#btnAdminResetFilters');
     const PAGE_SIZE = 160;
     let currentPage = 1;
-    let clickMultiplier = Number(multiplierSelect.value) || currentStep || 1;
+    let selectedCat = '';
+    let selectedLvl = '';
 
-    multiplierSelect.addEventListener('change', () => {
-      clickMultiplier = Number(multiplierSelect.value) || 1;
+    // Initialize Custom Dropdowns
+    const catOptions = [
+      { value: '', label: 'All categories' },
+      ...CATEGORIES.map(c => ({ value: c.name, label: c.name }))
+    ];
+    const catDropdown = createCustomDropdown({
+      buttonLabel: 'All categories',
+      options: catOptions,
+      selectedValue: selectedCat,
+      onSelect: (val) => {
+        selectedCat = val;
+        currentPage = 1;
+        drawGrid();
+      }
     });
+    wrap.querySelector('#adminCatDropdownSlot')?.appendChild(catDropdown.element);
+
+    const levelOptions = [
+      { value: '', label: 'All Levels' },
+      { value: '1-20', label: 'Lv. 1 – 20' },
+      { value: '21-40', label: 'Lv. 21 – 40' },
+      { value: '41-60', label: 'Lv. 41 – 60' },
+      { value: '61-80', label: 'Lv. 61 – 80' },
+      { value: '81-100+', label: 'Lv. 81 – 100+' }
+    ];
+    const levelDropdown = createCustomDropdown({
+      buttonLabel: 'All Levels',
+      options: levelOptions,
+      selectedValue: selectedLvl,
+      onSelect: (val) => {
+        selectedLvl = val;
+        currentPage = 1;
+        drawGrid();
+      }
+    });
+    wrap.querySelector('#adminLevelDropdownSlot')?.appendChild(levelDropdown.element);
 
     btnReset.addEventListener('click', () => {
       searchInp.value = '';
-      catSelect.value = '';
-      levelSelect.value = '';
-      multiplierSelect.value = String(state.store.itemClickStep || 1);
-      clickMultiplier = Number(multiplierSelect.value) || 1;
+      selectedCat = '';
+      selectedLvl = '';
+      catDropdown.setValue('');
+      levelDropdown.setValue('');
       currentPage = 1;
       drawGrid();
       toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
@@ -3729,8 +3985,8 @@
 
     function drawGrid() {
       const q = searchInp.value.toLowerCase().trim();
-      const cat = catSelect.value;
-      const lvl = levelSelect.value;
+      const cat = selectedCat;
+      const lvl = selectedLvl;
 
       const list = PRODUCTS.filter(p => {
         if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
@@ -3741,7 +3997,7 @@
           if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
           if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
           if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
-          if (lvl === '81+' && pLevel < 81) return false;
+          if (lvl === '81-100+' && pLevel < 81) return false;
         }
         return true;
       });
@@ -3763,9 +4019,10 @@
         const qty = state.selected[p.id] || 0;
         const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
         const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
+        const step = getProductClickStep(p);
         const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
         const tile = el(`
-          <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1})">
+          <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1}, สเต็ปคลิกละ ${step} ชิ้น)">
             ${mediaHtml}
             <span class="stock-dot"></span>
             <span class="qty-badge">${qty}</span>
@@ -3773,7 +4030,8 @@
         `);
         tile.addEventListener('click', () => {
           if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
-          state.selected[p.id] = (state.selected[p.id] || 0) + clickMultiplier;
+          const clickStep = getProductClickStep(p);
+          state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
           tile.classList.add('selected');
           const badge = tile.querySelector('.qty-badge');
           badge.textContent = state.selected[p.id];
@@ -3782,7 +4040,8 @@
         tile.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           if (!state.selected[p.id]) return openProductQuickModal(p);
-          state.selected[p.id] -= clickMultiplier;
+          const clickStep = getProductClickStep(p);
+          state.selected[p.id] -= clickStep;
           if (state.selected[p.id] <= 0) {
             delete state.selected[p.id];
             tile.classList.remove('selected');
@@ -3809,8 +4068,6 @@
     }
 
     searchInp.addEventListener('input', () => { currentPage = 1; drawGrid(); });
-    catSelect.addEventListener('change', () => { currentPage = 1; drawGrid(); });
-    levelSelect.addEventListener('change', () => { currentPage = 1; drawGrid(); });
     drawGrid();
   }
 
@@ -8302,6 +8559,205 @@
             });
           }
 
+          if (state.storeProductSubTab === 'items' && isItemsActive) {
+            // ITEM HAYDAY CATALOG
+            const itemBox = el(`
+              <div class="card">
+                <div class="flex items-center" style="justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
+                  <div>
+                    <div class="card-title">Menu &amp; Products</div>
+                    <div class="card-sub">Tap item to add to cart</div>
+                  </div>
+                  <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
+                    <div class="search-wrap" style="min-width:180px; max-width:260px; border-radius:24px;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+                      <input placeholder="Search..." id="storeSearch"/>
+                    </div>
+                    <div id="storeCatDropdownSlot"></div>
+                    <div id="storeLevelDropdownSlot"></div>
+                    <button type="button" class="btn btn-sm btn-ghost" id="btnStoreResetFilters" style="padding:7px 14px; font-weight:700; border:1.5px solid var(--border); border-radius:20px;">
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <div class="flex items-center" style="justify-content:space-between; margin-bottom:10px; color:var(--muted); font-size:12.5px">
+                  <span id="storeCount"></span>
+                  <span id="storeCartInfo" style="cursor:pointer;" title="Go to Cart"></span>
+                </div>
+                <div class="product-grid" id="storeGrid"></div>
+                <div class="pagination" id="storePager"></div>
+              </div>
+            `);
+            contentContainer.appendChild(itemBox);
+
+            const grid = itemBox.querySelector('#storeGrid');
+            const pager = itemBox.querySelector('#storePager');
+            const countEl = itemBox.querySelector('#storeCount');
+            const cartInfo = itemBox.querySelector('#storeCartInfo');
+            const searchEl = itemBox.querySelector('#storeSearch');
+            const btnReset = itemBox.querySelector('#btnStoreResetFilters');
+            const PAGE = 160;
+            let page = 1;
+            let selectedCat = '';
+            let selectedLvl = '';
+
+            // Custom Dropdowns
+            const catOptions = [
+              { value: '', label: 'All categories' },
+              ...CATEGORIES.map(c => ({ value: c.name, label: c.name }))
+            ];
+            const catDropdown = createCustomDropdown({
+              buttonLabel: 'All categories',
+              options: catOptions,
+              selectedValue: selectedCat,
+              onSelect: (val) => {
+                selectedCat = val;
+                page = 1;
+                drawStoreGrid();
+              }
+            });
+            itemBox.querySelector('#storeCatDropdownSlot')?.appendChild(catDropdown.element);
+
+            const levelOptions = [
+              { value: '', label: 'All Levels' },
+              { value: '1-20', label: 'Lv. 1 – 20' },
+              { value: '21-40', label: 'Lv. 21 – 40' },
+              { value: '41-60', label: 'Lv. 41 – 60' },
+              { value: '61-80', label: 'Lv. 61 – 80' },
+              { value: '81-100+', label: 'Lv. 81 – 100+' }
+            ];
+            const levelDropdown = createCustomDropdown({
+              buttonLabel: 'All Levels',
+              options: levelOptions,
+              selectedValue: selectedLvl,
+              onSelect: (val) => {
+                selectedLvl = val;
+                page = 1;
+                drawStoreGrid();
+              }
+            });
+            itemBox.querySelector('#storeLevelDropdownSlot')?.appendChild(levelDropdown.element);
+
+            btnReset.addEventListener('click', () => {
+              searchEl.value = '';
+              selectedCat = '';
+              selectedLvl = '';
+              catDropdown.setValue('');
+              levelDropdown.setValue('');
+              page = 1;
+              drawStoreGrid();
+              toast('ล้างค่าตัวกรองเรียบร้อยแล้ว', 'info');
+            });
+
+            function updateCartInfo() {
+              const totalQty = Object.values(state.selected).reduce((a,b)=>a+Number(b||0), 0);
+              const totalPrice = Object.entries(state.selected).reduce((sum, [id, q]) => {
+                return sum + calculateCartItemPrice(id, q);
+              }, 0);
+              cartInfo.innerHTML = totalQty
+                ? `Cart: <strong style="color:var(--text)">${totalQty}</strong> items · <strong style="color:var(--accent-text)">${money(totalPrice)}</strong> (Go to Cart →)`
+                : 'Cart is empty';
+            }
+            cartInfo.addEventListener('click', () => {
+              root.querySelectorAll('#storeTabs .tab').forEach(x => x.classList.remove('active'));
+              root.querySelector('#storeTabs [data-s="cart"]')?.classList.add('active');
+              drawStore('cart');
+            });
+
+            function drawStoreGrid() {
+              const q = searchEl.value.toLowerCase().trim();
+              const cat = selectedCat;
+              const lvl = selectedLvl;
+
+              const list = PRODUCTS.filter(p => {
+                if (q && !p.name.toLowerCase().includes(q) && !(p.cat || '').toLowerCase().includes(q)) return false;
+                if (cat && p.cat !== cat) return false;
+                if (lvl) {
+                  const pLevel = Number(p.level) || 1;
+                  if (lvl === '1-20' && (pLevel < 1 || pLevel > 20)) return false;
+                  if (lvl === '21-40' && (pLevel < 21 || pLevel > 40)) return false;
+                  if (lvl === '41-60' && (pLevel < 41 || pLevel > 60)) return false;
+                  if (lvl === '61-80' && (pLevel < 61 || pLevel > 80)) return false;
+                  if (lvl === '81-100+' && pLevel < 81) return false;
+                }
+                return true;
+              });
+
+              const totalPages = Math.max(1, Math.ceil(list.length / PAGE));
+              if (page > totalPages) page = totalPages;
+              const start = (page - 1) * PAGE;
+              const items = list.slice(start, start + PAGE);
+              countEl.textContent = list.length
+                ? `Showing ${start + 1}–${Math.min(list.length, start + PAGE)} of ${list.length} products`
+                : 'No products';
+              grid.innerHTML = '';
+
+              const ratio = Number(state.store?.priceRatio) || 1.0;
+
+              items.forEach(p => {
+                const sInfo = getStockStatusInfo(p.stock);
+                const stockCls = sInfo.dotClass;
+                const qty = state.selected[p.id] || 0;
+                const effectivePrice = Math.round(Number(p.price || 0) * ratio * 100) / 100;
+                const step = getProductClickStep(p);
+                const imgUrl = p.image || DEFAULT_PRODUCT_IMG;
+                const mediaHtml = `<img src="${escapeHTML(imgUrl)}" alt="${escapeHTML(p.name)}" onerror="this.src='${DEFAULT_PRODUCT_IMG}';" />`;
+                const tile = el(`
+                  <div class="product-tile ${stockCls} ${qty ? 'selected' : ''}" data-id="${p.id}" title="${escapeHTML(p.name)} · ${money(effectivePrice)} (Lv.${p.level || 1}, สเต็ปคลิกละ ${step} ชิ้น)">
+                    ${mediaHtml}
+                    <span class="stock-dot"></span>
+                    <span class="qty-badge">${qty}</span>
+                  </div>
+                `);
+                tile.addEventListener('click', () => {
+                  if (p.stock === 0) return toast(`${p.name} is out of stock`, 'error');
+                  const clickStep = getProductClickStep(p);
+                  state.selected[p.id] = (state.selected[p.id] || 0) + clickStep;
+                  tile.classList.add('selected');
+                  const badge = tile.querySelector('.qty-badge');
+                  badge.textContent = state.selected[p.id];
+                  badge.style.animation = 'none'; void badge.offsetWidth; badge.style.animation = '';
+                  updateCartInfo();
+                  updateFloatingCartBtn();
+                });
+                tile.addEventListener('contextmenu', (e) => {
+                  e.preventDefault();
+                  if (!state.selected[p.id]) return;
+                  const clickStep = getProductClickStep(p);
+                  state.selected[p.id] -= clickStep;
+                  if (state.selected[p.id] <= 0) {
+                    delete state.selected[p.id];
+                    tile.classList.remove('selected');
+                  } else {
+                    tile.querySelector('.qty-badge').textContent = state.selected[p.id];
+                  }
+                  updateCartInfo();
+                  updateFloatingCartBtn();
+                });
+                grid.appendChild(tile);
+              });
+
+              if (!list.length) grid.appendChild(el(`<div class="card empty" style="grid-column: 1/-1"><div class="icon">${ICONS.products}</div>No products match your filters.</div>`));
+
+              pager.innerHTML = '';
+              if (totalPages > 1) {
+                const mkBtn = (label, pNum, opts = {}) => {
+                  const b = el(`<button class="pg ${opts.active ? 'active' : ''}" ${opts.disabled ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>${label}</button>`);
+                  if (!opts.disabled) b.addEventListener('click', () => { page = pNum; drawStoreGrid(); });
+                  return b;
+                };
+                pager.appendChild(mkBtn('‹', page - 1, { disabled: page === 1 }));
+                for (let i = 1; i <= totalPages; i++) pager.appendChild(mkBtn(String(i), i, { active: i === page }));
+                pager.appendChild(mkBtn('›', page + 1, { disabled: page === totalPages }));
+              }
+              updateCartInfo();
+            }
+
+            searchEl.addEventListener('input', () => { page = 1; drawStoreGrid(); });
+            drawStoreGrid();
+            updateCartInfo();
+          }
+
           carouselEl.querySelector('#cPrev')?.addEventListener('click', (e) => { e.stopPropagation(); goToSlide(currentSlide - 1); });
           carouselEl.querySelector('#cNext')?.addEventListener('click', (e) => { e.stopPropagation(); goToSlide(currentSlide + 1); });
           dots.forEach(d => d.addEventListener('click', (e) => { e.stopPropagation(); goToSlide(+d.dataset.idx); }));
@@ -9116,10 +9572,12 @@
         // UNIVERSAL CART VIEW
         const cartEntries = Object.entries(state.selected).map(([id, q]) => {
           const it = getCartItemDetails(id);
-          return it ? { ...it, qty: q } : null;
+          if (!it) return null;
+          const lineTotal = calculateCartItemPrice(id, q);
+          return { ...it, qty: q, lineTotal };
         }).filter(Boolean);
 
-        const subtotal = cartEntries.reduce((s, i) => s + i.price * i.qty, 0);
+        const subtotal = cartEntries.reduce((s, i) => s + i.lineTotal, 0);
         const discount = calculatePromoDiscount(state.appliedPromo, subtotal);
         const total = Math.max(0, subtotal - discount);
         const activePromos = PROMOTIONS.filter(p => p.status === 'active');
@@ -9141,14 +9599,14 @@
                           ${thumbHtml}
                           <div style="flex:1">
                             <div style="font-weight:700; font-size:13.5px;">${escapeHTML(p.name)}</div>
-                            <div style="font-size:12px; color:var(--muted)">${escapeHTML(p.cat)} · ${money(p.price)}</div>
+                            <div style="font-size:12px; color:var(--muted)">${escapeHTML(p.cat)} · ${money(p.qty > 0 ? (p.lineTotal / p.qty) : p.price)}/ชิ้น</div>
                           </div>
                           <div class="flex items-center gap-2">
                             <button class="btn btn-sm btn-cart-minus" data-id="${p.id}">−</button>
                             <span style="font-weight:700">${p.qty}</span>
                             ${p.type !== 'game_account' ? `<button class="btn btn-sm btn-cart-plus" data-id="${p.id}">+</button>` : ''}
                           </div>
-                          <div style="font-weight:800; width:70px; text-align:right; color:var(--accent-text);">${money(p.price * p.qty)}</div>
+                          <div style="font-weight:800; width:80px; text-align:right; color:var(--accent-text);">${money(p.lineTotal)}</div>
                         </div>`;
                     }).join('')}
                   </div>
@@ -9213,7 +9671,9 @@
           btn.addEventListener('click', () => {
             const pid = btn.dataset.id;
             if (state.selected[pid]) {
-              state.selected[pid]--;
+              const p = PRODUCTS.find(x => String(x.id) === String(pid));
+              const step = p ? getProductClickStep(p) : 1;
+              state.selected[pid] -= step;
               if (state.selected[pid] <= 0) delete state.selected[pid];
               drawStore('cart');
               updateFloatingCartBtn();
@@ -9223,7 +9683,9 @@
         cartWrap.querySelectorAll('.btn-cart-plus').forEach(btn => {
           btn.addEventListener('click', () => {
             const pid = btn.dataset.id;
-            state.selected[pid] = (state.selected[pid] || 0) + 1;
+            const p = PRODUCTS.find(x => String(x.id) === String(pid));
+            const step = p ? getProductClickStep(p) : 1;
+            state.selected[pid] = (state.selected[pid] || 0) + step;
             drawStore('cart');
             updateFloatingCartBtn();
           });
@@ -9282,9 +9744,11 @@
       } else if (key === 'checkout') {
         const cartEntries = Object.entries(state.selected).map(([id, q]) => {
           const it = getCartItemDetails(id);
-          return it ? { ...it, qty: q } : null;
+          if (!it) return null;
+          const lineTotal = calculateCartItemPrice(id, q);
+          return { ...it, qty: q, lineTotal };
         }).filter(Boolean);
-        const subtotal = cartEntries.reduce((s, i) => s + i.price * i.qty, 0);
+        const subtotal = cartEntries.reduce((s, i) => s + i.lineTotal, 0);
         const discount = calculatePromoDiscount(state.appliedPromo, subtotal);
         const total = Math.max(0, subtotal - discount);
 
